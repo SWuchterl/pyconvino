@@ -58,7 +58,8 @@ def make_chi2(
             "LD":       jnp.array(ms.LD),
             "est_idx":  jnp.array(ms.est_global_idx, dtype=jnp.int32),
             "sys_idx":  jnp.array(ms.sys_global_idx, dtype=jnp.int32),
-            "rel_mask": jnp.array([t == "relative" for t in ms.sys_types]),
+            "rel_mask": jnp.array([t == "relative" for t in ms.sys_types],
+                                  dtype=bool),
         })
     inv_C_jax = jnp.array(inv_C)
     _eps = jnp.asarray(np.finfo(float).tiny)

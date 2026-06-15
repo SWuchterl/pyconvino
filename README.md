@@ -29,7 +29,7 @@ Options:
 
 | Flag | Meaning |
 |------|---------|
-| `--prefix P` | Output file prefix (default: `convino`) — result goes to `P_result.txt`. |
+| `--prefix P` | Output file prefix (default: `convino`) — result goes to `P_result.txt`. May include a directory (`out/run1`); missing directories are created, and an unwritable destination is rejected up front (before the fit) rather than after. |
 | `--pearson`  | Use the Pearson χ² instead of the default Neyman χ². |
 | `--debug`    | Print a full traceback on error. |
 
@@ -45,6 +45,32 @@ from convino_jax import Combiner, write_result
 
 result = Combiner.from_config("rho_config.txt").combine()
 write_result(result, prefix="mycombo")
+```
+
+## Tests
+
+The suite has three parts: numeric regression tests that run `ConvinoSetups/`
+combinations end-to-end and compare to stored golden snapshots
+(`test/golden/*.npz`), a byte-level formatter golden (`test/golden/formatter.txt`),
+and fast unit tests for the output-path handling.
+
+```bash
+python -m unittest discover -t . -s test       # fast suite (~4 s)
+```
+
+The full `corrV2` combination (~6 s; central values validated once against the
+original C++ Convino) is skipped by default — enable it with:
+
+```bash
+CONVINO_SLOW_TESTS=1 python -m unittest discover -t . -s test
+```
+
+If you change the numeric or formatted output *intentionally*, regenerate and
+commit the goldens:
+
+```bash
+python -m test.regen_golden            # all setups + formatter golden
+python -m test.regen_golden statonly   # a single setup
 ```
 
 ## Package layout
