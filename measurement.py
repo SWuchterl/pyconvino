@@ -111,7 +111,13 @@ def setup_measurement(data: MeasurementFileData) -> MeasurementSetup:
             M = H[:nHest, :nHest]
             kappa = H[:nHest, nHest:]
             tildeC = H[nHest:, nHest:]
-            TM = np.linalg.inv(M)
+            try:
+                TM = np.linalg.inv(M)
+            except np.linalg.LinAlgError:
+                raise ValueError(
+                    f"{data.path}: estimate-block of the Hessian is singular "
+                    "and cannot be inverted"
+                )
 
     # ------------------------------------------------------------------
     # Build LM (observable Hessian)

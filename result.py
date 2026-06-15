@@ -223,6 +223,10 @@ def _print_impact_table(
         buf.write(' | ')
     buf.write('\n')
 
+    # NOTE: only the upward impact is printed, matching the C++ reference
+    # formatter (combinationResult::printFullInfo). The downward impact is
+    # computed and stored on the result but intentionally not shown in this
+    # table.
     for label, (imp_up, _imp_down) in impact_groups.items():
         buf.write(label.ljust(maxnuis))
         buf.write(' | ')

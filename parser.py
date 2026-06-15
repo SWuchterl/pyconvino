@@ -59,7 +59,14 @@ def _read_blocks(path: Path) -> dict[str, list[str]]:
             # Handle #!FILE include directive BEFORE stripping comments
             m_file = re.match(r'\s*#!FILE\s*=\s*(.+)', raw)
             if m_file and current_block is not None:
-                include_path = base_dir / m_file.group(1).strip()
+                # Drop any trailing inline comment after the path. We cannot use
+                # _strip_comment on the whole line because the directive itself
+                # starts with '#'.
+                inc = m_file.group(1)
+                hash_pos = inc.find('#')
+                if hash_pos >= 0:
+                    inc = inc[:hash_pos]
+                include_path = base_dir / inc.strip()
                 inc_lines = include_path.read_text().splitlines()
                 _consume(inc_lines, include_path.parent)
                 continue
@@ -91,6 +98,10 @@ def _read_blocks(path: Path) -> dict[str, list[str]]:
 
     raw_text = Path(path).read_text().splitlines()
     _consume(raw_text, Path(path).parent)
+    # Flush a block left open at end-of-file (i.e. with no explicit [end]
+    # marker); otherwise its lines would be silently dropped.
+    if current_block is not None:
+        blocks[current_block] = current_lines
     return blocks
 
 
@@ -112,10 +123,17 @@ def _parse_uncertainty_str(s: str) -> tuple[float, float]:
 
     s = s.replace(' ', '')
     s = s.strip('()')
-    # Find the last '-' or '+' (the separator between up and down)
-    sep = s.rfind('-')
-    if sep <= 0:  # no '-' after position 0 → find last '+'
-        sep = s.rfind('+')
+    # Find the separator between the up and down variations: the last '+'/'-'
+    # that is the sign of the down value rather than part of an exponent
+    # (e.g. the '-' in '1.2e-3' must not be treated as the separator).
+    sep = -1
+    for i in range(len(s) - 1, 0, -1):
+        if s[i] in '+-' and s[i - 1] not in 'eE':
+            sep = i
+            break
+    if sep <= 0:  # no separator found → a single (symmetric) value in parens
+        v = float(s)
+        return v, -v
     first = s[:sep]
     second = s[sep:]
 
@@ -149,7 +167,6 @@ def _parse_triangular(lines: list[str]) -> tuple[list[str], list[Optional[float]
     constraints: list[Optional[float]] = []
     rows: list[list[float]] = []
 
-    has_constraint = False
     for i, line in enumerate(lines):
         tokens = line.split()
         if not tokens:
@@ -157,14 +174,12 @@ def _parse_triangular(lines: list[str]) -> tuple[list[str], list[Optional[float]
         name = tokens[0]
         names.append(name)
 
-        # Detect constraint column on first row
-        if i == 0 and len(tokens) > 2:
-            if tokens[1].startswith('(') and tokens[1].endswith(')'):
-                has_constraint = True
-
-        if has_constraint:
-            c_str = tokens[1].strip('()')
-            constraints.append(float(c_str))
+        # A constraint is present on this row iff the token directly after the
+        # name is a parenthesised value, e.g. '(0.5)'. Detected per row (not
+        # inferred once from row 0) so a block whose rows are not all uniform
+        # is still parsed correctly.
+        if len(tokens) > 1 and tokens[1].startswith('(') and tokens[1].endswith(')'):
+            constraints.append(float(tokens[1].strip('()')))
             values = [float(t) for t in tokens[2:]]
         else:
             constraints.append(None)
@@ -286,12 +301,17 @@ def parse_measurement_file(path: str | Path) -> MeasurementFileData:
         # Hessian. The (.. * sigma_i) * sigma_j association matches the original
         # scalar loop bit-for-bit (np.outer would reassociate to sigma_i*sigma_j).
         C = corr * sigma[:, None] * sigma[None, :]
+        # Positive-definiteness must be tested via the eigenvalues (det > 0 is
+        # NOT a PD test — an even number of negative eigenvalues also gives a
+        # positive determinant) and BEFORE inverting, so an indefinite
+        # covariance is rejected rather than silently inverted into a non-PD
+        # Hessian.
+        if float(np.linalg.eigvalsh(C).min()) <= 0:
+            raise ValueError(f"{path}: covariance from correlation matrix not positive definite")
         try:
             H = np.linalg.inv(C)
         except np.linalg.LinAlgError:
             raise ValueError(f"{path}: correlation matrix covariance not invertible")
-        if np.linalg.det(C) <= 0:
-            raise ValueError(f"{path}: covariance from correlation matrix not positive definite")
 
         data.hessian_names = names
         data.hessian = H.tolist()
@@ -299,9 +319,10 @@ def parse_measurement_file(path: str | Path) -> MeasurementFileData:
     # ---- Not-fitted block --------------------------------------------
     if 'not fitted' in blocks and blocks['not fitted']:
         lines = blocks['not fitted']
-        # First line is the header (systematic names)
+        # First line is the header. Each header column maps positionally to a
+        # value column of the data rows (after the leading estimate name). The
+        # 'stat' column may appear at any position, not only last.
         header = lines[0].split()
-        has_stat = 'stat' in header
         sys_names = [h for h in header if h != 'stat']
         data.ext_sys_names = sys_names
 
@@ -314,14 +335,15 @@ def parse_measurement_file(path: str | Path) -> MeasurementFileData:
             est_name = tokens[0]
             ext[est_name] = {}
 
-            idx = 1
-            for sname in sys_names:
-                if idx < len(tokens):
-                    up, down = _parse_uncertainty_str(tokens[idx])
-                    ext[est_name][sname] = UncertaintyEntry(up, down)
-                    idx += 1
-            if has_stat and idx < len(tokens):
-                data.stat_errors[est_name] = float(tokens[idx])
+            for col, hname in enumerate(header):
+                tok_idx = col + 1  # skip the leading estimate name
+                if tok_idx >= len(tokens):
+                    break
+                if hname == 'stat':
+                    data.stat_errors[est_name] = float(tokens[tok_idx])
+                else:
+                    up, down = _parse_uncertainty_str(tokens[tok_idx])
+                    ext[est_name][hname] = UncertaintyEntry(up, down)
 
         data.externalized = ext
 

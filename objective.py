@@ -73,9 +73,14 @@ def make_chi2(
             Lk_down * jnp.abs(lam),
         )  # (nest_local, nlamb_local)
 
-        # Relative systematics: multiplicative
+        # Relative systematics: multiplicative. A relative shift on an estimate
+        # whose measured value is exactly 0 is undefined (X% of 0 = 0); treat it
+        # as no shift. This also keeps the tiny _eps floor (used only to avoid a
+        # 0/0) from blowing up the second derivative and turning the Hessian
+        # into inf/NaN.
         x_safe = jnp.where(jnp.abs(x_meas) > 0, x_meas, _eps)
-        rel_factor = jnp.where(rel_mask, 1.0 - k_eval / x_safe[:, jnp.newaxis], 1.0)
+        rel_ok = rel_mask & (jnp.abs(x_meas)[:, jnp.newaxis] > 0)
+        rel_factor = jnp.where(rel_ok, 1.0 - k_eval / x_safe[:, jnp.newaxis], 1.0)
         x = x_comb_local * jnp.prod(rel_factor, axis=1)
 
         # Absolute systematics: additive

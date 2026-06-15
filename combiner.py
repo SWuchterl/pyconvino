@@ -215,7 +215,7 @@ class Combiner:
         impact_groups, impact_cov_groups = self._compute_impacts(
             chi2_fn, grad_eager, pars_best, chi2_min,
             all_sys_names, combined_err_up, combined_err_down,
-            nsys, nest, corr_est
+            nsys, nest, corr_est, responses_symmetric,
         )
 
         return CombinationResult(
@@ -283,6 +283,12 @@ class Combiner:
         nest = len(combined_names)
 
         for ms in setups:
+            for e in ms.est_names:
+                if e not in est_to_combined:
+                    raise ValueError(
+                        f"estimate '{e}' is not listed in any [observables] entry "
+                        f"(estimates in this measurement: {ms.est_names})"
+                    )
             ms.est_global_idx = [
                 comb_to_idx[est_to_combined[e]] for e in ms.est_names
             ]
@@ -305,6 +311,13 @@ class Combiner:
         C = np.eye(nsys)
         name_to_idx = {n: i for i, n in enumerate(all_sys_names)}
 
+        # NOTE: only the nominal correlation (sr.nominal) is used. The scan
+        # ranges sr.low / sr.high parsed from the "(nom & low : high)" syntax
+        # are deliberately not yet propagated — scanning the correlation
+        # assumption to derive an additional uncertainty is a planned future
+        # feature (the C++ tool exposes this via its "-s" option). The parser
+        # already retains low/high so that work does not require re-parsing.
+        # If the same pair is specified more than once, the last value wins.
         for scan in self.config.correlation_scans:
             for sr in scan.ranges:
                 ia = name_to_idx.get(sr.name_a)
@@ -373,7 +386,16 @@ class Combiner:
             options={"maxiter": 5000, "ftol": 1e-15, "gtol": 1e-9},
         )
 
-        converged = res2.success or res2.fun < res1.fun + 1e-6
+        # res2.success can be False even at a perfectly good minimum (L-BFGS-B
+        # line-search quirks near machine precision), so fall back to an
+        # explicit stationarity test on the gradient. The previous fallback
+        # (res2.fun < res1.fun + 1e-6) was meaningless: pass 2 starts from
+        # pass 1's point, so it is true for essentially every fit, converged or
+        # not.
+        gnorm = float(np.linalg.norm(
+            np.array(grad_fn(jnp.array(res2.x, dtype=jnp.float64)))
+        ))
+        converged = bool(res2.success or gnorm < 1e-4)
         return jnp.array(res2.x, dtype=jnp.float64), res2.fun, converged
 
     def _minimize_frozen(self, chi2_fn, grad_fn, p_init, frozen_idx, frozen_vals, options):
@@ -414,21 +436,32 @@ class Combiner:
         param_idx: int,
         sigma_sym: float,
         target_delta: float = 1.0,
+        extra_frozen_idx=None,
+        extra_frozen_vals=None,
     ) -> tuple[float, float]:
         """
         Find asymmetric ±1σ errors via profile likelihood:
         profile_chi2(v) = min_{pars except param_idx} chi2(pars)  at  pars[param_idx] = v
 
         Solves: profile_chi2(v) - chi2_min = target_delta = 1
+
+        `extra_frozen_idx` / `extra_frozen_vals` pin additional parameters during
+        the inner minimisation. They are used to profile a combined observable
+        while an impact group is held frozen, so the frozen error is on the same
+        profile-likelihood footing as the full error.
         """
         pars_arr = np.array(pars_best, dtype=np.float64)
         v0 = float(pars_arr[param_idx])
         _opts = {"maxiter": 1000, "ftol": 1e-14, "gtol": 1e-8}
 
+        extra_idx = list(extra_frozen_idx) if extra_frozen_idx is not None else []
+        extra_vals = list(extra_frozen_vals) if extra_frozen_vals is not None else []
+
         def profile(v: float) -> float:
-            """Minimize chi2 with pars[param_idx] = v, return chi2 value."""
+            """Minimize chi2 with pars[param_idx] = v (extras frozen)."""
             res, _ = self._minimize_frozen(
-                chi2_fn, grad_fn, pars_arr, [param_idx], v, _opts
+                chi2_fn, grad_fn, pars_arr,
+                [param_idx] + extra_idx, [float(v)] + extra_vals, _opts,
             )
             return res.fun
 
@@ -449,6 +482,10 @@ class Combiner:
                         v0, bracket_hi,
                         xtol=_XTOL, rtol=_RTOL, maxiter=_MAXITER) - v0
         except Exception:
+            warnings.warn(
+                f"profile (upward) error for parameter {param_idx} failed; "
+                "falling back to the symmetric HESSE error"
+            )
             eu = sigma_sym  # fallback
 
         # Downward error
@@ -458,6 +495,10 @@ class Combiner:
                              bracket_lo, v0,
                              xtol=_XTOL, rtol=_RTOL, maxiter=_MAXITER)
         except Exception:
+            warnings.warn(
+                f"profile (downward) error for parameter {param_idx} failed; "
+                "falling back to the symmetric HESSE error"
+            )
             ed = sigma_sym  # fallback
 
         return float(eu), float(ed)
@@ -474,6 +515,7 @@ class Combiner:
         nsys: int,
         nest: int,
         corr_est: np.ndarray,
+        responses_symmetric: bool,
     ) -> tuple[dict[str, tuple[np.ndarray, np.ndarray]], dict[str, np.ndarray]]:
         """
         For each impact group, freeze the group's systematics at 0, re-minimise,
@@ -495,6 +537,10 @@ class Combiner:
         for label, members in self.config.impact_groups.items():
             frozen_idx = [sys_to_idx[m] for m in members if m in sys_to_idx]
             if not frozen_idx:
+                warnings.warn(
+                    f"impact group '{label}' has no members matching any known "
+                    f"systematic ({members}); skipping it"
+                )
                 continue
 
             res, free_mask = self._minimize_frozen(
@@ -528,19 +574,47 @@ class Combiner:
             try:
                 # Factor of 2: chi2 Hessian → true variance (Minuit UP=1), same
                 # convention as cov_fit above. err_frozen must be on the same
-                # footing as the profile combined_err_up/down it is combined with.
+                # footing as the combined_err_up/down it is combined with.
                 cov_restricted = 2.0 * scipy_inv(H_restricted)
-                # Frozen errors = sqrt of the diagonal of the est-block.
+                # HESSE frozen errors = sqrt of the diagonal of the est-block.
+                # Also used as the bracket seed for the profile scan below.
                 err_frozen_up = np.sqrt(np.maximum(
                     np.diag(cov_restricted)[est_slice], 0.0
                 ))
                 err_frozen_down = err_frozen_up.copy()
+
+                # When the full errors were obtained by profiling (asymmetric
+                # responses), the frozen errors must be profiled too, so the
+                # impact quadrature sqrt(err_full^2 - err_frozen^2) combines
+                # like-for-like. This mirrors C++, which refits the same
+                # MINOS-configured fitter with the group frozen. In the
+                # symmetric (purely quadratic) case HESSE == profile, so the
+                # cheaper HESSE errors above are kept unchanged.
+                if not responses_symmetric:
+                    p_frozen_full = np.array(pars_best, dtype=np.float64)
+                    p_frozen_full[free_mask] = res.x
+                    p_frozen_full[frozen_idx] = 0.0
+                    eu_list, ed_list = [], []
+                    for k in range(nest):
+                        eu_f, ed_f = self._profile_error(
+                            chi2_fn, grad_fn, p_frozen_full, res.fun,
+                            nsys + k, float(err_frozen_up[k]),
+                            extra_frozen_idx=frozen_idx,
+                            extra_frozen_vals=[0.0] * len(frozen_idx),
+                        )
+                        eu_list.append(eu_f)
+                        ed_list.append(ed_f)
+                    err_frozen_up = np.array(eu_list)
+                    err_frozen_down = np.array(ed_list)
+
                 # Covariance of the combined observables with this group frozen,
                 # printed as the [covariance matrix for merged impacts] section.
                 # C++ builds it from the FULL-fit result correlation scaled by the
-                # frozen errors: cov[i,j] = corr_est[i,j] * err_f[i] * err_f[j].
-                # (Diagonal = err_frozen**2 since corr_est[i,i] = 1.)
-                est_cov = corr_est * np.outer(err_frozen_up, err_frozen_up)
+                # (symmetric) frozen errors: cov[i,j] = corr_est[i,j]*sig[i]*sig[j]
+                # with sig = max(|err_up|, |err_down|). (Diagonal = sig**2 since
+                # corr_est[i,i] = 1.)
+                sym_frozen = np.maximum(np.abs(err_frozen_up), np.abs(err_frozen_down))
+                est_cov = corr_est * np.outer(sym_frozen, sym_frozen)
             except np.linalg.LinAlgError:
                 est_cov = np.full((nest, nest), np.nan)
                 err_frozen_up = np.full(nest, np.nan)
