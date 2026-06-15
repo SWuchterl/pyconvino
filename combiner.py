@@ -215,7 +215,7 @@ class Combiner:
         impact_groups, impact_cov_groups = self._compute_impacts(
             chi2_fn, grad_eager, pars_best, chi2_min,
             all_sys_names, combined_err_up, combined_err_down,
-            nsys, nest, corr_est, responses_symmetric,
+            nsys, nest, corr_est, responses_symmetric, H_fit,
         )
 
         return CombinationResult(
@@ -516,10 +516,22 @@ class Combiner:
         nest: int,
         corr_est: np.ndarray,
         responses_symmetric: bool,
+        H_fit: np.ndarray,
     ) -> tuple[dict[str, tuple[np.ndarray, np.ndarray]], dict[str, np.ndarray]]:
         """
-        For each impact group, freeze the group's systematics at 0, re-minimise,
-        then compute the impact in quadrature vs. the full error.
+        For each impact group, freeze the group's systematics at 0 and compute
+        the impact in quadrature vs. the full error.
+
+        The frozen-fit Hessian restricted to the free parameters is exactly the
+        free-free submatrix of the full post-fit Hessian `H_fit`: freezing a
+        parameter removes its row/column, and for the (quadratic) gaussian chi2
+        the Hessian is constant, so the frozen minimum sits on the same
+        paraboloid as `pars_best`. We therefore slice `H_fit` instead of doing a
+        per-group L-BFGS-B refit followed by a freshly jitted jax.hessian — that
+        per-group re-JIT + re-fit was the dominant cost (one XLA compile per
+        group; 48 groups for the full combination). Only the genuinely
+        asymmetric-response case still needs the refit + profile scan, where the
+        submatrix serves as the bracket seed.
 
         `corr_est` is the (nest x nest) post-fit correlation of the combined
         observables from the FULL fit; C++ scales it by the frozen errors to
@@ -533,6 +545,7 @@ class Combiner:
         sys_to_idx = {n: i for i, n in enumerate(all_sys_names)}
         results: dict[str, tuple[np.ndarray, np.ndarray]] = {}
         cov_results: dict[str, np.ndarray] = {}
+        n = nsys + nest
 
         for label, members in self.config.impact_groups.items():
             frozen_idx = [sys_to_idx[m] for m in members if m in sys_to_idx]
@@ -543,28 +556,9 @@ class Combiner:
                 )
                 continue
 
-            res, free_mask = self._minimize_frozen(
-                chi2_fn, grad_fn, pars_best, frozen_idx, 0.0,
-                {"maxiter": 2000, "ftol": 1e-14, "gtol": 1e-8},
-            )
-            n = len(free_mask)
-
-            # Post-fit Hessian restricted to free parameters only.
-            # Using the full Hessian would give the same result for all groups
-            # (since the frozen minimum is at the same point as pars_best).
-            # The restricted Hessian correctly captures the reduced flexibility.
+            free_mask = np.ones(n, dtype=bool)
+            free_mask[frozen_idx] = False
             free_indices = np.where(free_mask)[0]
-            free_indices_j = jnp.array(free_indices, dtype=jnp.int32)
-            n_free = len(free_indices)
-
-            def chi2_restricted(x_free, fi_j=free_indices_j, n_full=n):
-                p = jnp.zeros(n_full, dtype=jnp.float64)
-                p = p.at[fi_j].set(x_free)
-                return chi2_fn(p)
-
-            chi2_restricted_jit = jax.jit(chi2_restricted)
-            x_frozen_free = jnp.array(res.x, dtype=jnp.float64)
-            H_restricted = np.array(jax.hessian(chi2_restricted_jit)(x_frozen_free))
 
             # x_comb indices within the free subspace. The combined observables
             # are never frozen, so they always occupy the last nest slots of the
@@ -572,9 +566,12 @@ class Combiner:
             n_free_sys = int(np.sum(free_mask[:nsys]))
             est_slice = slice(n_free_sys, n_free_sys + nest)
             try:
-                # Factor of 2: chi2 Hessian → true variance (Minuit UP=1), same
-                # convention as cov_fit above. err_frozen must be on the same
-                # footing as the combined_err_up/down it is combined with.
+                # Restricted Hessian = free-free submatrix of the full Hessian
+                # (see the docstring). Factor of 2: chi2 Hessian → true variance
+                # (Minuit UP=1), same convention as cov_fit above, so err_frozen
+                # is on the same footing as the combined_err_up/down it is
+                # combined with.
+                H_restricted = H_fit[np.ix_(free_indices, free_indices)]
                 cov_restricted = 2.0 * scipy_inv(H_restricted)
                 # HESSE frozen errors = sqrt of the diagonal of the est-block.
                 # Also used as the bracket seed for the profile scan below.
@@ -589,8 +586,13 @@ class Combiner:
                 # like-for-like. This mirrors C++, which refits the same
                 # MINOS-configured fitter with the group frozen. In the
                 # symmetric (purely quadratic) case HESSE == profile, so the
-                # cheaper HESSE errors above are kept unchanged.
+                # cheaper submatrix errors above are kept unchanged and no refit
+                # is performed.
                 if not responses_symmetric:
+                    res, _ = self._minimize_frozen(
+                        chi2_fn, grad_fn, pars_best, frozen_idx, 0.0,
+                        {"maxiter": 2000, "ftol": 1e-14, "gtol": 1e-8},
+                    )
                     p_frozen_full = np.array(pars_best, dtype=np.float64)
                     p_frozen_full[free_mask] = res.x
                     p_frozen_full[frozen_idx] = 0.0
@@ -638,6 +640,8 @@ def _nearest_positive_definite(A: np.ndarray) -> np.ndarray:
     Return the nearest positive-definite matrix to A.
     Negative eigenvalues are reflected to a small positive epsilon.
     """
+    if A.size == 0:
+        return A  # no systematics in the prior (e.g. stat-only combination)
     A = (A + A.T) / 2.0
     eigvals, eigvecs = np.linalg.eigh(A)
     eps = 1e-10 * max(1.0, np.max(np.abs(eigvals)))

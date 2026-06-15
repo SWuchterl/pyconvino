@@ -29,9 +29,13 @@ def main():
 
     # Import here to keep startup fast
     from .combiner import Combiner
-    from .result import write_result
+    from .result import prepare_output_path, write_result
 
     try:
+        # Validate (and create) the output location up front, so a bad
+        # --prefix fails immediately instead of after the full combination.
+        prepare_output_path(args.prefix)
+
         combiner = Combiner.from_config(
             args.config,
             use_pearson=args.pearson,

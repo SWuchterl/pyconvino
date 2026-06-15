@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import io
 import math
+import os
 from pathlib import Path
 
 import numpy as np
@@ -354,9 +355,57 @@ def format_result(result: CombinationResult) -> str:
     return buf.getvalue()
 
 
+def output_path_for(prefix: str) -> Path:
+    """Return the result file path for a given prefix (<prefix>_result.txt)."""
+    return Path(f"{prefix}_result.txt")
+
+
+def prepare_output_path(prefix: str) -> Path:
+    """
+    Resolve the output path for `prefix`, create any parent directory it names,
+    and verify the location is writable — all BEFORE the (expensive) fit runs.
+
+    A prefix may include a directory component (e.g. "out/run1" →
+    "out/run1_result.txt"). The parent directory is created if missing, so the
+    combination does not run for minutes only to fail at the final write.
+
+    Returns the resolved output path. Raises a clear error if the directory
+    cannot be created or written to.
+    """
+    out_path = output_path_for(prefix)
+    parent = out_path.parent
+
+    try:
+        parent.mkdir(parents=True, exist_ok=True)
+    except OSError as e:
+        raise ValueError(
+            f"cannot create output directory '{parent}' for prefix '{prefix}': {e}"
+        ) from e
+
+    if not os.access(parent, os.W_OK):
+        raise ValueError(
+            f"output directory '{parent}' is not writable (prefix '{prefix}')"
+        )
+    # Catch the case where the target exists but is not a writable file
+    # (e.g. a directory, or a read-only file).
+    if out_path.is_dir():
+        raise ValueError(
+            f"output path '{out_path}' is a directory, not a file"
+        )
+    if out_path.exists() and not os.access(out_path, os.W_OK):
+        raise ValueError(
+            f"output file '{out_path}' exists and is not writable"
+        )
+
+    return out_path
+
+
 def write_result(result: CombinationResult, prefix: str = "convino") -> None:
-    """Write the result text file to <prefix>_result.txt."""
+    """Write the result text file to <prefix>_result.txt.
+
+    Creates the prefix's parent directory if needed.
+    """
     text = format_result(result)
-    out_path = Path(f"{prefix}_result.txt")
-    out_path.write_text(text)
+    out_path = prepare_output_path(prefix)
+    out_path.write_text(text, encoding="utf-8")
     print(f"Result written to {out_path}")

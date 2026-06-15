@@ -1,0 +1,86 @@
+[pre-combine systematics correlations]
+sysA  1.0000000  0.2999999 0.0000000
+sysB  0.2999999  1.0000000 -0.2000000
+sysC 0.0000000 -0.2000000  1.0000000
+[end pre-combine systematics correlations]
+
+[post-combine systematics correlations]
+sysA  1.0000000  0.2500000  0.0500000
+sysB  0.2500000  1.0000000 -0.1499999
+sysC  0.0500000 -0.1499999  1.0000000
+[end post-combine systematics correlations]
+
+[pre-combine estimate correlations]
+
+[end pre-combine estimate correlations]
+
+[post-combine result correlations]
+obs1  1.0000000  0.5000000
+obs2  0.5000000  1.0000000
+[end post-combine result correlations]
+
+[post-combine result covariance]
+obs1  149.81759  186.65999
+obs2  186.65999  930.25000
+[end post-combine result covariance]
+
+[combined (minimum chi^2=1.2345)]
+obs1: 107.5 +12.24 -12.1
+obs2: 611.9 +30.33 -30.5
+[end combined (minimum chi^2=1.2345)]
+
+[impact table: name, impact [%]]
+       obs1 | obs2 | 
+groupX |  4.74 |  1.34 | 
+[end impact table]
+
+[full correlation matrix]
+sysA  1.0000000  0.2500000  0.0500000  0.4000000 -0.1000000
+sysB  0.2500000  1.0000000 -0.1499999  0.2000000  0.2999999
+sysC  0.0500000 -0.1499999  1.0000000 -0.0500000  0.1199999
+obs1  0.4000000  0.2000000 -0.0500000  1.0000000  0.5000000
+obs2 -0.1000000  0.2999999  0.1199999  0.5000000  1.0000000
+[end full correlation matrix]
+
+[full covariance matrix]
+sysA  0.6400000  0.2200000  0.0240000  3.8399999 -0.5999999
+sysB  0.2200000  1.2099999 -0.0990000  2.6400000  2.4750000
+sysC  0.0240000 -0.0990000  0.3599999 -0.3599999  0.5400000
+obs1  3.8399999  2.6400000 -0.3599999  144.00000  45.000000
+obs2 -0.5999999  2.4750000  0.5400000  45.000000  56.250000
+[end full covariance matrix]
+
+[nuisance pulls]
+Name       pull   constraint
+sysA    0.120    0.950
+sysB  -0.3400    0.800
+sysC    0.560    1.000
+[end nuisance pulls]
+
+[simple impacts]
+[simple impact table: name, impact [%]]
+     obs1 | obs2 | 
+sysA |  4.55 |  0.49 | 
+sysB |  2.27 |  1.49 | 
+sysC |  0.56 |  0.59 | 
+[end simple impact table: name, impact [%]]
+
+
+[end simple impacts]
+
+[merged impacts]
+
+[impact table: name, impact [%]]
+       obs1 | obs2 | 
+groupX |  4.74 |  1.34 | 
+
+[end merged impacts]
+
+[covariance matrix for merged impacts]
+[covariance matrix for impact table]
+[groupX]
+obs1  26.010000  12.545999
+obs2  12.545999  67.239999
+[end groupX]
+
+[end covariance matrix for merged impacts]
