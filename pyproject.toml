@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "convino_jax"
+version = "0.1.0"
+description = "Convino physics combination tool — Python/JAX port (no ROOT, no Minuit)"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "jax>=0.4.20",
+    "jaxlib>=0.4.20",
+    "numpy>=1.24",
+    "scipy>=1.11",
+]
+
+[project.scripts]
+convino = "convino_jax.cli:main"
+
+# The repository root *is* the `convino_jax` package (the .py modules live here),
+# so map the package name onto "." instead of a nested source folder.
+[tool.setuptools]
+packages = ["convino_jax"]
+package-dir = { "convino_jax" = "." }
