@@ -1,0 +1,66 @@
+[global]
+
+	isDifferential = false
+	normalise = false
+
+[end global]
+
+[inputs]
+
+	nFiles = 1
+	file0 = ATLAS8TeV_ConvinoInput_withSystsSmoothed.txt
+
+[end inputs]
+
+[observables]
+
+	ATLAS_8TeV_2012_lj_abs_rho_0p0_0p25 = ATLAS_8TeV_2012_lj_abs_rho_0p0_0p25
+	ATLAS_8TeV_2012_lj_abs_rho_0p25_0p325 = ATLAS_8TeV_2012_lj_abs_rho_0p25_0p325
+	ATLAS_8TeV_2012_lj_abs_rho_0p325_0p425 = ATLAS_8TeV_2012_lj_abs_rho_0p325_0p425
+	ATLAS_8TeV_2012_lj_abs_rho_0p425_0p525 = ATLAS_8TeV_2012_lj_abs_rho_0p425_0p525
+	ATLAS_8TeV_2012_lj_abs_rho_0p525_0p675 = ATLAS_8TeV_2012_lj_abs_rho_0p525_0p675
+	ATLAS_8TeV_2012_lj_abs_rho_0p675_0p725 = ATLAS_8TeV_2012_lj_abs_rho_0p675_0p725
+	ATLAS_8TeV_2012_lj_abs_rho_0p725_0p775 = ATLAS_8TeV_2012_lj_abs_rho_0p725_0p775
+	ATLAS_8TeV_2012_lj_abs_rho_0p775_1p0 = ATLAS_8TeV_2012_lj_abs_rho_0p775_1p0
+
+[end observables]
+
+[correlations]
+
+	#!FILE  =  extra_correlations.txt
+
+[end correlations]
+
+[uncertainty impacts]
+
+ATLAS_8TeV_scale_j = ATLAS_8TeV_scale_j_Det1 + ATLAS_8TeV_scale_j_Det2 + ATLAS_8TeV_scale_j_Det3 + ATLAS_8TeV_scale_j_EtaIntercalibrationModel + ATLAS_8TeV_scale_j_EtaIntercalibrationTotalStat + ATLAS_8TeV_scale_j_flavorcomp + ATLAS_8TeV_scale_j_flavorresponse + ATLAS_8TeV_scale_j_Mix1 + ATLAS_8TeV_scale_j_Mix2 + ATLAS_8TeV_scale_j_Mix3 + ATLAS_8TeV_scale_j_Mix4 + ATLAS_8TeV_scale_j_Model1 + ATLAS_8TeV_scale_j_Model2 + ATLAS_8TeV_scale_j_Model3 + ATLAS_8TeV_scale_j_Model4 + ATLAS_8TeV_scale_j_PileupOffsetMu + ATLAS_8TeV_scale_j_PileupOffsetNPV + ATLAS_8TeV_scale_j_PileupPt + ATLAS_8TeV_scale_j_PileupRho + ATLAS_8TeV_scale_j_PunchThrough + ATLAS_8TeV_scale_j_SinglePart + ATLAS_8TeV_scale_j_Stat1 + ATLAS_8TeV_scale_j_Stat2 + ATLAS_8TeV_scale_j_Stat3 + ATLAS_8TeV_scale_j_Stat4
+
+ATLAS_8TeV_eff_j = ATLAS_8TeV_eff_j + ATLAS_8TeV_eff_j_jvf + ATLAS_8TeV_eff_j_jvfmistag
+
+ATLAS_8TeV_res_j =   ATLAS_8TeV_res_j_diff + ATLAS_8TeV_res_j_noiseforward + ATLAS_8TeV_res_j_np0 + ATLAS_8TeV_res_j_np1 + ATLAS_8TeV_res_j_np2 + ATLAS_8TeV_res_j_np3 + ATLAS_8TeV_res_j_np4 + ATLAS_8TeV_res_j_np5 + ATLAS_8TeV_res_j_np6 + ATLAS_8TeV_res_j_np7 + ATLAS_8TeV_res_j_np8
+
+ATLAS_8TeV_pdf = ATLAS_8TeV_pdf_0 + ATLAS_8TeV_pdf_1 + ATLAS_8TeV_pdf_10 + ATLAS_8TeV_pdf_11 + ATLAS_8TeV_pdf_12 + ATLAS_8TeV_pdf_13 + ATLAS_8TeV_pdf_14 + ATLAS_8TeV_pdf_15 + ATLAS_8TeV_pdf_16 + ATLAS_8TeV_pdf_17 + ATLAS_8TeV_pdf_18 + ATLAS_8TeV_pdf_19 + ATLAS_8TeV_pdf_2 + ATLAS_8TeV_pdf_20 + ATLAS_8TeV_pdf_21 + ATLAS_8TeV_pdf_22 + ATLAS_8TeV_pdf_23 + ATLAS_8TeV_pdf_24 + ATLAS_8TeV_pdf_25 + ATLAS_8TeV_pdf_26 + ATLAS_8TeV_pdf_27 + ATLAS_8TeV_pdf_28 + ATLAS_8TeV_pdf_29 + ATLAS_8TeV_pdf_3 + ATLAS_8TeV_pdf_30 + ATLAS_8TeV_pdf_31 + ATLAS_8TeV_pdf_32 + ATLAS_8TeV_pdf_33 + ATLAS_8TeV_pdf_34 + ATLAS_8TeV_pdf_35 + ATLAS_8TeV_pdf_36 + ATLAS_8TeV_pdf_37 + ATLAS_8TeV_pdf_38 + ATLAS_8TeV_pdf_39 + ATLAS_8TeV_pdf_4 + ATLAS_8TeV_pdf_40 + ATLAS_8TeV_pdf_41 + ATLAS_8TeV_pdf_42 + ATLAS_8TeV_pdf_43 + ATLAS_8TeV_pdf_44 + ATLAS_8TeV_pdf_45 + ATLAS_8TeV_pdf_46 + ATLAS_8TeV_pdf_47 + ATLAS_8TeV_pdf_48 + ATLAS_8TeV_pdf_49 + ATLAS_8TeV_pdf_5 + ATLAS_8TeV_pdf_50 + ATLAS_8TeV_pdf_51 + ATLAS_8TeV_pdf_52 + ATLAS_8TeV_pdf_6 + ATLAS_8TeV_pdf_7 + ATLAS_8TeV_pdf_8 + ATLAS_8TeV_pdf_9
+
+ATLAS_8TeV_modeling_tt = ATLAS_8TeV_modelling_ttbar_ColorReconnection + ATLAS_8TeV_modelling_ttbar_MatrixElement + ATLAS_8TeV_modelling_ttbar_Radiation + ATLAS_8TeV_modelling_ttbar_ShowerHadronization + ATLAS_8TeV_modelling_ttbar_UnderlyingEvent +
+
+ATLAS_8TeV_eff_b = ATLAS_8TeV_eff_b_heavy_0 + ATLAS_8TeV_eff_b_heavy_1 + ATLAS_8TeV_eff_b_heavy_2 + ATLAS_8TeV_eff_b_heavy_3 + ATLAS_8TeV_eff_b_heavy_4 + ATLAS_8TeV_eff_b_heavy_5 + ATLAS_8TeV_eff_b_heavy_6 + ATLAS_8TeV_eff_b_heavy_7 + ATLAS_8TeV_eff_b_heavy_8 + ATLAS_8TeV_eff_b_heavy_highpte +  ATLAS_8TeV_eff_b_light
+
+ATLAS_8TeV_scale_b = ATLAS_8TeV_scale_b
+
+ATLAS_8TeV_fake = ATLAS_8TeV_fake_j_FAKEALTERNATE + ATLAS_8TeV_fake_j_FAKEMCUP + ATLAS_8TeV_fake_j_PARALTERNATE + ATLAS_8TeV_fake_j_REALALTERNATE = absolute
+
+ATLAS_8TeV_scale_m = ATLAS_8TeV_res_m + ATLAS_8TeV_scale_m
+
+ATLAS_8TeV_eff_m = ATLAS_8TeV_eff_m
+
+ATLAS_8TeV_scale_met = ATLAS_8TeV_res_met + ATLAS_8TeV_scale_met
+
+ATLAS_8TeV_scale_e = ATLAS_8TeV_res_e + ATLAS_8TeV_scale_e
+
+ATLAS_8TeV_norm_bkg = ATLAS_8TeV_norm_singletop + ATLAS_8TeV_norm_wjets + ATLAS_8TeV_norm_zjets
+
+ATLAS_8TeV_fake_j = ATLAS_8TeV_fake_j_FAKEALTERNATE + ATLAS_8TeV_fake_j_FAKEMCUP + ATLAS_8TeV_fake_j_PARALTERNATE + ATLAS_8TeV_fake_j_REALALTERNATE
+
+
+
+[end uncertainty impacts]

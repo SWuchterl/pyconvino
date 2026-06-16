@@ -33,3 +33,6 @@ jax_cache/
 .vscode/
 .idea/
 .DS_Store
+
+# Reference documentation, not part of the package
+documentation.pdf

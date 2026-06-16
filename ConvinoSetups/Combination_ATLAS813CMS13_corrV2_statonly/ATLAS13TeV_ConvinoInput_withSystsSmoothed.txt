@@ -1,0 +1,34 @@
+[correlation matrix]
+	ATLAS_13TeV_201518_dil_abs_rho_0p0_0p25 (31.708171868862234)  1.0
+	ATLAS_13TeV_201518_dil_abs_rho_0p25_0p4 (70.16271176664267)  -0.33874762  1.0
+	ATLAS_13TeV_201518_dil_abs_rho_0p4_0p5 (106.96413665622813)  0.14676104  -0.58849355  1.0
+	ATLAS_13TeV_201518_dil_abs_rho_0p5_0p6 (127.59950099064349)  -0.06656069  0.30882165  -0.71245407  1.0
+	ATLAS_13TeV_201518_dil_abs_rho_0p6_0p7 (101.73244219971507)  0.01374827  -0.09113565  0.29349907  -0.66962029  1.0
+	ATLAS_13TeV_201518_dil_abs_rho_0p7_0p8 (55.50510180632599)  0.02270714  -0.07952311  0.11328883  0.01044624  -0.45689746  1.0
+	ATLAS_13TeV_201518_dil_abs_rho_0p8_1p0 (63.825335638661194)  -0.02210397  0.10174895  -0.24155212  0.40116151  -0.43730046  -0.16556353  1.0
+[end correlation matrix]
+
+[systematics]
+[end systematics]
+
+[not fitted]
+[end not fitted]
+
+[estimates]
+	n_estimates =  7
+	name_0 = ATLAS_13TeV_201518_dil_abs_rho_0p0_0p25
+	value_0 = 1818.0
+	name_1 = ATLAS_13TeV_201518_dil_abs_rho_0p25_0p4
+	value_1 = 7135.0
+	name_2 = ATLAS_13TeV_201518_dil_abs_rho_0p4_0p5
+	value_2 = 6112.35714286
+	name_3 = ATLAS_13TeV_201518_dil_abs_rho_0p5_0p6
+	value_3 = 5526.64285714
+	name_4 = ATLAS_13TeV_201518_dil_abs_rho_0p6_0p7
+	value_4 = 3488.85714286
+	name_5 = ATLAS_13TeV_201518_dil_abs_rho_0p7_0p8
+	value_5 = 1313.07142857
+	name_6 = ATLAS_13TeV_201518_dil_abs_rho_0p8_1p0
+	value_6 = 176.72857143
+[end estimates]
+

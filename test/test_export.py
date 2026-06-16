@@ -41,6 +41,13 @@ class ExportRoundTripTest(unittest.TestCase):
         self.assertNotIn("__stat_only__", d["impact_per_systematic"])
         self.assertNotIn("__stat_only__", d["cov_per_systematic"])
 
+    def test_goodness_of_fit_fields_present(self):
+        d = self.expected
+        self.assertIn("ndf", d)
+        self.assertIn("chi2_per_ndf", d)
+        self.assertIn("p_value", d)
+        self.assertEqual(d["ndf"], self.result.ndf)
+
     def test_total_syst_covariance_is_difference(self):
         d = self.expected
         np.testing.assert_allclose(

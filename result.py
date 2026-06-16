@@ -319,6 +319,16 @@ def format_result(result: CombinationResult) -> str:
                             result.impact_groups)
         buf.write("[end impact table]\n\n")
 
+    # 6b. Goodness of fit. New section, no C++ equivalent: the reference
+    # combinationResult only ever stores/prints chi2min_, never an ndf or
+    # p-value (grepped combinationResult.cpp/combiner.cpp, no match) — see
+    # the ndf convention documented on CombinationResult in combiner.py.
+    buf.write("\n[goodness of fit]\n")
+    buf.write(f"ndf: {result.ndf:d}\n")
+    buf.write(f"chi2/ndf: {result.chi2_per_ndf:g}\n")
+    buf.write(f"p-value: {result.p_value:g}\n")
+    buf.write("[end goodness of fit]\n")
+
     # 7. Full correlation matrix
     _section(buf, "full correlation matrix", all_names, result.corr_full)
 
@@ -341,6 +351,11 @@ def format_result(result: CombinationResult) -> str:
     buf.write("\n[end simple impacts]\n")
 
     # 11. Merged impacts again (if groups present)
+    # Intentionally a superset of the C++ reference: that implementation never
+    # populates impacttable_ for a printFullInfo run on this setup, so its output
+    # omits sections 11/12 entirely. We print them deliberately (decided to keep,
+    # not a fidelity bug) since the per-group covariance has no C++ equivalent at
+    # all and is useful on its own.
     if result.impact_groups:
         buf.write("\n[merged impacts]\n\n")
         _print_impact_table(buf, comb_names, result.combined_values,
@@ -412,6 +427,43 @@ def write_result(result: CombinationResult, prefix: str = "convino") -> None:
 
 
 # ---------------------------------------------------------------------------
+# Correlation scan output (Combiner.scan_correlations / CLI --scan)
+# ---------------------------------------------------------------------------
+
+ScanResults = dict  # {group_name: (scan_values: np.ndarray, [CombinationResult, ...])}
+
+
+def format_scan_result(scan_results: "ScanResults") -> str:
+    """
+    Concatenate `format_result()` for every step of every scan group, with a
+    `===` header identifying the group/step/value before each block. The C++
+    reference's `scan_result.txt` concatenates raw `printFullInfo` blocks with
+    no such header (relying on the console log printed alongside it for
+    context); since there is no byte-fidelity target for this new file, the
+    header is added for readability.
+    """
+    buf = io.StringIO()
+    for name, (values, steps) in scan_results.items():
+        for i, (val, res) in enumerate(zip(values, steps)):
+            buf.write(
+                f"=== scan group '{name}': step {i + 1}/{len(steps)}, "
+                f"correlation={float(val):g} ===\n"
+            )
+            buf.write(format_result(res))
+            buf.write("\n")
+    return buf.getvalue()
+
+
+def write_scan_result(scan_results: "ScanResults", prefix: str = "convino") -> Path:
+    """Write the scan text log to <prefix>_scan_result.txt."""
+    text = format_scan_result(scan_results)
+    out_path = Path(f"{prefix}_scan_result.txt")
+    out_path.write_text(text, encoding="utf-8")
+    print(f"Scan result written to {out_path}")
+    return out_path
+
+
+# ---------------------------------------------------------------------------
 # Machine-readable export (npz / json)
 # ---------------------------------------------------------------------------
 #
@@ -429,6 +481,9 @@ def to_dict(result: CombinationResult) -> dict:
     `combined_covariance`/`combined_correlation` are the nest×nest slices of
     `cov_full`/`corr_full` — the marginal covariance over all profiled
     nuisance parameters, i.e. exactly what a downstream chi2 fit needs.
+
+    `ndf`/`chi2_per_ndf`/`p_value` are the goodness-of-fit figures; see the
+    ndf convention documented on `CombinationResult` in combiner.py.
 
     `stat_only_covariance` is the same covariance with every systematic
     frozen (pure statistical/measurement uncertainty); `total_syst_covariance`
@@ -456,6 +511,9 @@ def to_dict(result: CombinationResult) -> dict:
         "combined_covariance": combined_covariance,
         "combined_correlation": combined_correlation,
         "chi2_min": float(result.chi2_min),
+        "ndf": int(result.ndf),
+        "chi2_per_ndf": float(result.chi2_per_ndf),
+        "p_value": float(result.p_value),
         "converged": bool(result.converged),
         "sys_names": list(result.sys_names),
         "pulls": np.asarray(result.pulls),
@@ -521,4 +579,40 @@ def export_json(result: CombinationResult, path) -> None:
     import json
 
     data = _to_jsonable(to_dict(result))
+    Path(path).write_text(json.dumps(data, indent=2), encoding="utf-8")
+
+
+def scan_results_to_dict(scan_results: "ScanResults") -> dict:
+    """
+    Flatten `Combiner.scan_correlations()`'s output into a `to_dict()`-shaped
+    nested dict: `{group_name: {"scan_values": [...], "steps": [to_dict(...),
+    ...]}}`. The pythonic replacement for the C++ reference's ROOT
+    TGraphAsymmErrors output (`-p` plots) — `scan_values` plus each step's
+    `combined_values`/`combined_err_up`/`combined_err_down`/`chi2_min` is the
+    same data the original plotted, usable directly with matplotlib.
+    """
+    return {
+        name: {
+            "scan_values": np.asarray(values),
+            "steps": [to_dict(res) for res in steps],
+        }
+        for name, (values, steps) in scan_results.items()
+    }
+
+
+def export_scan_npz(scan_results: "ScanResults", path) -> None:
+    """Export scan results to a compressed .npz (flat keys, '__'-joined)."""
+    flat: dict[str, np.ndarray] = {}
+    for name, (values, steps) in scan_results.items():
+        flat[f"{name}__scan_values"] = np.asarray(values)
+        for i, res in enumerate(steps):
+            flat.update(_flatten_for_npz(to_dict(res), prefix=f"{name}__step{i}__"))
+    np.savez_compressed(path, **flat)
+
+
+def export_scan_json(scan_results: "ScanResults", path) -> None:
+    """Export scan results to a JSON file (nested, ndarrays as lists)."""
+    import json
+
+    data = _to_jsonable(scan_results_to_dict(scan_results))
     Path(path).write_text(json.dumps(data, indent=2), encoding="utf-8")

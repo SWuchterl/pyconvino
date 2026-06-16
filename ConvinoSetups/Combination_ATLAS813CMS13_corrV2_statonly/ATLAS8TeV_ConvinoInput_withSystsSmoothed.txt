@@ -1,0 +1,49 @@
+[hessian]
+[end hessian]
+
+[correlation matrix]
+    ATLAS_8TeV_2012_lj_abs_rho_0p0_0p25 (54.6146228278)  1.0
+    ATLAS_8TeV_2012_lj_abs_rho_0p25_0p325 (98.2002194453)  -0.1698036622 1.0
+    ATLAS_8TeV_2012_lj_abs_rho_0p325_0p425 (144.1914209146)  -0.0560923761 -0.185528228 1.0
+    ATLAS_8TeV_2012_lj_abs_rho_0p425_0p525 (151.6300728552)  0.0229718393 -0.0371120669 -0.1743267177 1.0
+    ATLAS_8TeV_2012_lj_abs_rho_0p525_0p675 (168.6938324232)  0.03382784 -0.0443593303 0.0411240488 -0.1997176404 1.0
+    ATLAS_8TeV_2012_lj_abs_rho_0p675_0p725 (60.2973554966)  -0.1296522464 0.045880677 0.0787818037 -0.0212554365 -0.0791276602 1.0
+    ATLAS_8TeV_2012_lj_abs_rho_0p725_0p775 (33.4017688451)  -0.0571443626 -0.0078879667 0.0572351584 0.0519086077 -0.2566137235 0.2160925396 1.0
+    ATLAS_8TeV_2012_lj_abs_rho_0p775_1p0 (22.2787133557)  0.0111945413 -0.0349918045 -0.0011602069 0.0490498497 -0.1716660094 -0.0710105023 0.3908856465 1.0
+[end correlation matrix]
+
+[systematics]
+[end systematics]
+
+[not fitted]
+[end not fitted]
+
+[estimates]
+
+    n_estimates =  8 
+
+    name_0 =  ATLAS_8TeV_2012_lj_abs_rho_0p0_0p25
+    value_0 =  748.6923076923076 
+
+    name_1 =  ATLAS_8TeV_2012_lj_abs_rho_0p25_0p325
+    value_1 =  1988.235576923077 
+
+    name_2 =  ATLAS_8TeV_2012_lj_abs_rho_0p325_0p425
+    value_2 =  4850.7692307692305 
+
+    name_3 =  ATLAS_8TeV_2012_lj_abs_rho_0p425_0p525
+    value_3 =  5793.75 
+
+    name_4 =  ATLAS_8TeV_2012_lj_abs_rho_0p525_0p675
+    value_4 =  7780.192307692308 
+
+    name_5 =  ATLAS_8TeV_2012_lj_abs_rho_0p675_0p725
+    value_5 =  1441.0576923076922 
+
+    name_6 =  ATLAS_8TeV_2012_lj_abs_rho_0p725_0p775
+    value_6 =  723.451923076923 
+
+    name_7 =  ATLAS_8TeV_2012_lj_abs_rho_0p775_1p0
+    value_7 =  248.47115384615384 
+
+[end estimates]

@@ -1,0 +1,51 @@
+[global]
+
+	isDifferential = false
+	normalise = false
+
+[end global]
+
+[inputs]
+
+	nFiles = 3
+	file0 = CMS_13TeV_2016_dil_inputs.txt
+	file1 = ATLAS8TeV_ConvinoInput_withSystsSmoothed.txt
+	file2 = ATLAS13TeV_ConvinoInput_withSystsSmoothed.txt
+
+[end inputs]
+
+[observables]
+
+	CMS_13TeV_2016_dil_absDivBinWidth_rho_0p0_0p3 = CMS_13TeV_2016_dil_absDivBinWidth_rho_0p0_0p3
+	CMS_13TeV_2016_dil_absDivBinWidth_rho_0p3_0p45 = CMS_13TeV_2016_dil_absDivBinWidth_rho_0p3_0p45
+	CMS_13TeV_2016_dil_absDivBinWidth_rho_0p45_0p7 = CMS_13TeV_2016_dil_absDivBinWidth_rho_0p45_0p7
+	CMS_13TeV_2016_dil_absDivBinWidth_rho_0p7_1p0 = CMS_13TeV_2016_dil_absDivBinWidth_rho_0p7_1p0
+
+	ATLAS_8TeV_2012_lj_abs_rho_0p0_0p25 = ATLAS_8TeV_2012_lj_abs_rho_0p0_0p25
+	ATLAS_8TeV_2012_lj_abs_rho_0p25_0p325 = ATLAS_8TeV_2012_lj_abs_rho_0p25_0p325
+	ATLAS_8TeV_2012_lj_abs_rho_0p325_0p425 = ATLAS_8TeV_2012_lj_abs_rho_0p325_0p425
+	ATLAS_8TeV_2012_lj_abs_rho_0p425_0p525 = ATLAS_8TeV_2012_lj_abs_rho_0p425_0p525
+	ATLAS_8TeV_2012_lj_abs_rho_0p525_0p675 = ATLAS_8TeV_2012_lj_abs_rho_0p525_0p675
+	ATLAS_8TeV_2012_lj_abs_rho_0p675_0p725 = ATLAS_8TeV_2012_lj_abs_rho_0p675_0p725
+	ATLAS_8TeV_2012_lj_abs_rho_0p725_0p775 = ATLAS_8TeV_2012_lj_abs_rho_0p725_0p775
+	ATLAS_8TeV_2012_lj_abs_rho_0p775_1p0 = ATLAS_8TeV_2012_lj_abs_rho_0p775_1p0
+
+	ATLAS_13TeV_201518_dil_abs_rho_0p0_0p25 = ATLAS_13TeV_201518_dil_abs_rho_0p0_0p25
+	ATLAS_13TeV_201518_dil_abs_rho_0p25_0p4 = ATLAS_13TeV_201518_dil_abs_rho_0p25_0p4
+	ATLAS_13TeV_201518_dil_abs_rho_0p4_0p5 = ATLAS_13TeV_201518_dil_abs_rho_0p4_0p5
+	ATLAS_13TeV_201518_dil_abs_rho_0p5_0p6 = ATLAS_13TeV_201518_dil_abs_rho_0p5_0p6
+	ATLAS_13TeV_201518_dil_abs_rho_0p6_0p7 = ATLAS_13TeV_201518_dil_abs_rho_0p6_0p7
+	ATLAS_13TeV_201518_dil_abs_rho_0p7_0p8 = ATLAS_13TeV_201518_dil_abs_rho_0p7_0p8
+	ATLAS_13TeV_201518_dil_abs_rho_0p8_1p0 = ATLAS_13TeV_201518_dil_abs_rho_0p8_1p0
+
+[end observables]
+
+[correlations]
+
+	#!FILE  =  extra_correlations.txt
+
+[end correlations]
+
+[uncertainty impacts]
+
+[end uncertainty impacts]

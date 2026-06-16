@@ -9,9 +9,16 @@ Steps performed:
       pars[nsys:]  = combined observable values (x_comb), one per combined bin
 4. Build the global prior inverse-covariance matrix from user correlations.
 5. Build and JIT-compile the JAX chi2.
-6. Two-pass minimization with scipy L-BFGS-B:
-      pass 1: loose tolerance (fast, gets near the minimum)
-      pass 2: tight tolerance (precision fit)
+6. Minimization:
+      - Quadratic fast path: when the chi2 is an exact quadratic form in
+        `pars` (symmetric systematic responses, no "relative" systematics,
+        and Pearson scaling off), its Hessian is constant and the minimum is
+        reachable from any starting point in one linear solve.
+      - General path (any "relative" systematic, or Pearson scaling on):
+        two-pass scipy L-BFGS-B (pass 1: loose tolerance to get near the
+        minimum; pass 2: tight tolerance for a precision fit), followed by a
+        single Newton-correction step using the exact Hessian for extra
+        precision.
 7. Extract asymmetric errors via profile likelihood (MINOS equivalent).
 8. Compute post-fit covariance from the Hessian of chi2 at the minimum.
 9. Compute uncertainty impacts by re-fitting with systematic groups frozen.
@@ -20,6 +27,9 @@ Steps performed:
 
 from __future__ import annotations
 
+import copy
+import sys
+import time
 import warnings
 from dataclasses import dataclass, field
 from typing import Optional
@@ -29,6 +39,7 @@ import jax
 import jax.numpy as jnp
 from scipy.optimize import minimize, brentq
 from scipy.linalg import inv as scipy_inv
+from scipy.stats import chi2 as _chi2_dist
 
 jax.config.update("jax_enable_x64", True)
 
@@ -48,6 +59,24 @@ class CombinationResult:
     # Minimizer outcome
     chi2_min: float = 0.0
     converged: bool = False
+
+    # Goodness of fit. ndf = (total number of individual input measurements,
+    # i.e. sum of len(x_meas) over all measurement setups) - nest (the number
+    # of fitted combined-observable parameters). Every nuisance parameter
+    # (nsys of them) is excluded from both sides of that count: each is a
+    # fitted parameter, but also carries at least a unit-Gaussian prior (the
+    # global correlation prior, optionally sharpened by a per-measurement
+    # Hessian block), so by the standard Wilks'-theorem treatment of
+    # Gaussian-constrained profiled nuisances it contributes net zero degrees
+    # of freedom — the same convention used for published ATLAS/CMS
+    # combination chi2/ndf figures. (The original C++ Convino never computed
+    # or printed ndf/p-value at all — only chi2min_ — so there is no fidelity
+    # target to match here.) NaN when ndf <= 0 (e.g. a single, non-redundant
+    # measurement with no systematics has nothing left to test for
+    # consistency).
+    ndf: int = 0
+    chi2_per_ndf: float = float("nan")
+    p_value: float = float("nan")
 
     # Combined observables
     combined_names: list[str] = field(default_factory=list)
@@ -118,11 +147,24 @@ class Combiner:
         meas_data: list[MeasurementFileData],
         use_pearson: bool = False,
         prefix: str = "convino",
+        compute_impacts: bool = True,
+        impacts_only: Optional[list[str]] = None,
+        verbose: bool = False,
     ):
         self.config = config
         self.meas_data = meas_data
         self.use_pearson = use_pearson
         self.prefix = prefix
+        self.compute_impacts = compute_impacts
+        self.impacts_only = impacts_only
+        self.verbose = verbose
+        if impacts_only is not None:
+            unknown = sorted(set(impacts_only) - set(config.impact_groups))
+            if unknown:
+                raise ValueError(
+                    f"--impacts-only requested unknown impact group(s) {unknown}; "
+                    f"available: {sorted(config.impact_groups)}"
+                )
 
     @classmethod
     def from_config(
@@ -130,10 +172,29 @@ class Combiner:
         config_path: str,
         use_pearson: bool = False,
         prefix: str = "convino",
+        compute_impacts: bool = True,
+        impacts_only: Optional[list[str]] = None,
+        verbose: bool = False,
     ) -> "Combiner":
+        t0 = time.perf_counter()
         cfg = parse_config_file(config_path)
         meas_data = [parse_measurement_file(p) for p in cfg.measurement_files]
-        return cls(cfg, meas_data, use_pearson=use_pearson, prefix=prefix)
+        if verbose:
+            print(
+                f"[convino] parsed config + {len(meas_data)} measurement file(s): "
+                f"{time.perf_counter() - t0:.3f}s",
+                file=sys.stderr,
+            )
+        return cls(
+            cfg, meas_data, use_pearson=use_pearson, prefix=prefix,
+            compute_impacts=compute_impacts, impacts_only=impacts_only,
+            verbose=verbose,
+        )
+
+    def _vtime(self, label: str, t0: float) -> None:
+        """Print elapsed time since `t0` if `self.verbose` (CLI --verbose)."""
+        if self.verbose:
+            print(f"[convino] {label}: {time.perf_counter() - t0:.3f}s", file=sys.stderr)
 
     # ------------------------------------------------------------------
     # Public API
@@ -141,8 +202,10 @@ class Combiner:
 
     def combine(self) -> CombinationResult:
         cfg = self.config
+        t_total = time.perf_counter()
 
         # 1. Setup measurements
+        t0 = time.perf_counter()
         setups = [setup_measurement(d) for d in self.meas_data]
 
         # 2. Build global parameter index layout (mutates each setup in place)
@@ -150,22 +213,61 @@ class Combiner:
 
         # 3. Build prior inverse-covariance
         inv_C, C_exact = self._build_prior(all_sys_names)
+        self._vtime("setup + prior", t0)
 
         # 4. Build chi2
+        t0 = time.perf_counter()
         chi2_fn = make_chi2(setups, inv_C, nsys, nest, self.use_pearson)
-        grad_fn = jax.jit(jax.grad(chi2_fn))
+        value_and_grad_fn = jax.jit(jax.value_and_grad(chi2_fn))
         hess_fn = jax.jit(jax.hessian(chi2_fn))
         # Eager gradient (constructed once) for the profile/impact refits. The
-        # jitted grad_fn is NOT reused there: jit reassociates float ops at the
-        # ~1e-14 level, which the impact quadrature sqrt(err_full^2 - err_frozen^2)
-        # amplifies into the printed digits. The main fit uses the jitted grad_fn.
+        # jitted value_and_grad_fn is NOT reused there: jit reassociates float
+        # ops at the ~1e-14 level, which the impact quadrature
+        # sqrt(err_full^2 - err_frozen^2) amplifies into the printed digits.
+        # The main fit uses the jitted value_and_grad_fn (fused fun/jac, one
+        # forward+backward dispatch per evaluation point instead of two).
         grad_eager = jax.grad(chi2_fn)
+        self._vtime("chi2 build", t0)
+
+        # responses_symmetric: every systematic response is symmetric
+        # (Lk_up == -Lk_down, no kink at lambda=0). Computed here (rather than
+        # after _minimize, as in earlier versions) because it gates which
+        # minimizer strategy to use, in addition to its other use below (MINOS
+        # vs. HESSE errors).
+        responses_symmetric = all(
+            np.allclose(s.Lk_up, -s.Lk_down, atol=1e-9, rtol=1e-6)
+            for s in setups
+        )
+        # No "relative" systematic anywhere: relative systematics are
+        # multiplicative on x_comb (see the rel_factor branch in
+        # objective._x_shifted), which is nonlinear in pars even when
+        # symmetric. ("lognormal" is already rejected earlier in
+        # make_chi2/setup_measurement, so only "absolute"/"relative" remain.)
+        all_absolute = all(
+            t == "absolute" for s in setups for t in s.sys_types
+        )
+        # Whenever the chi2 is an exact quadratic form in pars (symmetric
+        # responses, no relative systematics, and not Pearson-rescaled — see
+        # the use_pearson branch in objective.chi2, which makes LM_eff depend
+        # nonlinearly on x_sh), its Hessian is constant and the gradient is
+        # exactly linear: grad(p) = H @ (p - p_min) for ANY p. The true
+        # minimum is then reachable from any starting point in one linear
+        # solve, with no iterative optimizer needed at all.
+        quadratic_fast_path = responses_symmetric and all_absolute and not self.use_pearson
 
         # 5. Initial parameter vector
         x0 = self._initial_params(setups, nsys, nest)
 
-        # 6. Two-pass minimization
-        pars_best, chi2_min, converged = self._minimize(chi2_fn, grad_fn, x0)
+        # 6. Minimization: exact one-step solve for the quadratic case, or the
+        # robust two-pass L-BFGS-B (with a Newton polish) otherwise. This is
+        # also where the jitted value_and_grad_fn/hess_fn first get XLA-
+        # compiled (jax.jit traces lazily, on first call), so this checkpoint
+        # includes that one-time compile cost, not just optimizer iterations.
+        t0 = time.perf_counter()
+        pars_best, chi2_min, converged = self._minimize(
+            value_and_grad_fn, x0, hess_fn=hess_fn, quadratic_fast_path=quadratic_fast_path
+        )
+        self._vtime("minimize", t0)
 
         # 7. Post-fit Hessian → covariance
         #
@@ -178,6 +280,7 @@ class Combiner:
         # (constraints, displayed covariance matrix, error-bracket hints) uses
         # the true variance; the correlation matrix is unaffected (factor
         # cancels) and profile-likelihood errors are computed independently.
+        t0 = time.perf_counter()
         H_fit = np.array(hess_fn(pars_best))
         try:
             cov_fit = 2.0 * scipy_inv(H_fit)
@@ -204,10 +307,8 @@ class Combiner:
         combined_vals = np.array(pars_best[nsys:])
         hesse_errs = np.sqrt(np.maximum(np.diag(cov_fit)[nsys:], 0.0))
 
-        responses_symmetric = all(
-            np.allclose(s.Lk_up, -s.Lk_down, atol=1e-9, rtol=1e-6)
-            for s in setups
-        )
+        # responses_symmetric was already computed above (before _minimize),
+        # since it also gates the quadratic fast path.
 
         combined_err_up = hesse_errs.copy()
         combined_err_down = hesse_errs.copy()
@@ -231,22 +332,50 @@ class Combiner:
 
         # 11. Pre-combine systematic correlations (exact user-specified prior C)
         pre_sys_corr = C_exact
+        self._vtime("post-fit covariance + errors", t0)
 
-        # 12. Uncertainty impacts (and per-group frozen covariance matrices)
+        # 12. Uncertainty impacts (and per-group frozen covariance matrices).
+        # Both this step and step 13 below sit behind `self.compute_impacts`
+        # (--no-impacts): they are the dominant runtime cost on setups with
+        # many systematics/groups (see [[regression-tests]]), and a caller
+        # who only wants the combined values/covariance can skip them
+        # entirely. `self.impacts_only` (--impacts-only) instead narrows step
+        # 12 to a subset of the user-defined groups without touching step 13
+        # (the per-systematic breakdown is a separate, generally cheaper-per-
+        # entry feature used by the export API).
+        t0 = time.perf_counter()
         corr_est = corr_full[nsys:, nsys:]
-        impact_groups, impact_cov_groups = self._compute_impacts(
-            chi2_fn, grad_eager, pars_best, chi2_min,
-            all_sys_names, combined_err_up, combined_err_down,
-            nsys, nest, corr_est, responses_symmetric, H_fit,
-            self.config.impact_groups,
-        )
+        if self.compute_impacts:
+            impact_groups_cfg = self.config.impact_groups
+            if self.impacts_only is not None:
+                impact_groups_cfg = {
+                    label: impact_groups_cfg[label] for label in self.impacts_only
+                }
+            impact_groups, impact_cov_groups = self._compute_impacts(
+                chi2_fn, grad_eager, pars_best, chi2_min,
+                all_sys_names, combined_err_up, combined_err_down,
+                nsys, nest, corr_est, responses_symmetric, H_fit,
+                impact_groups_cfg,
+            )
+        else:
+            impact_groups, impact_cov_groups = {}, {}
 
         # 13. Stat/syst split + per-individual-systematic frozen covariance.
         # Same mechanism as step 12, just applied to every systematic as its
         # own one-member group plus a pseudo-group covering all of them (whose
         # frozen covariance IS the stat-only covariance, and whose "impact" IS
         # the total systematic impact).
-        if nsys > 0:
+        if not self.compute_impacts:
+            # Skipped: leave NaN-filled placeholders of the right shape
+            # (rather than the zero-size dataclass defaults) so downstream
+            # consumers like to_dict()'s `combined_covariance -
+            # stat_only_covariance` don't hit a shape mismatch.
+            stat_only_covariance = np.full((nest, nest), np.nan)
+            total_syst_impact_up = np.full(nest, np.nan)
+            total_syst_impact_down = np.full(nest, np.nan)
+            impact_per_systematic = {}
+            cov_per_systematic = {}
+        elif nsys > 0:
             per_sys_groups: dict[str, list[str]] = {
                 name: [name] for name in all_sys_names
             }
@@ -270,10 +399,27 @@ class Combiner:
             total_syst_impact_down = np.zeros(nest)
             impact_per_systematic = {}
             cov_per_systematic = {}
+        self._vtime("impacts", t0)
+
+        # 14. Goodness of fit (ndf, chi2/ndf, p-value). See the ndf convention
+        # documented on CombinationResult above.
+        n_meas = sum(len(s.x_meas) for s in setups)
+        ndf = n_meas - nest
+        if ndf > 0:
+            chi2_per_ndf = float(chi2_min) / ndf
+            p_value = float(_chi2_dist.sf(max(float(chi2_min), 0.0), ndf))
+        else:
+            chi2_per_ndf = float("nan")
+            p_value = float("nan")
+
+        self._vtime("total", t_total)
 
         return CombinationResult(
             chi2_min=float(chi2_min),
             converged=converged,
+            ndf=ndf,
+            chi2_per_ndf=chi2_per_ndf,
+            p_value=p_value,
             combined_names=combined_names,
             combined_values=combined_vals,
             combined_err_up=combined_err_up,
@@ -296,6 +442,79 @@ class Combiner:
             impact_per_systematic=impact_per_systematic,
             cov_per_systematic=cov_per_systematic,
         )
+
+    def scan_correlations(
+        self, n_steps: int = 6, compute_impacts: bool = False
+    ) -> dict[str, tuple[np.ndarray, list["CombinationResult"]]]:
+        """
+        Re-run the combination while sweeping a correlation assumption
+        across its configured range, one named `[correlations]` group at a
+        time. Python port of the C++ `-s` option (`combiner::scanCorrelations`
+        / `single_correlationscan::scanVal`): for a group with a single
+        `(nominal & low : high)` pair, the swept value at step i is
+        `low + i*(high-low)/(n_steps-1)`; for a group with several pairs
+        (moved together in lockstep, one config line scanning more than one
+        systematic pair at once), each pair sweeps its own low/high range at
+        the same step index, matching `single_correlationscan::scanVal` being
+        called per-pair with the shared step. `n_steps=6` matches the
+        original's hardcoded `single_correlationscan::nPoints()`.
+
+        Groups where every pair has `low == high` (no actual range — just a
+        plain nominal correlation, the common case) are skipped: scanning a
+        single point burns a full re-fit for no information, unlike the
+        reference implementation which scans every group unconditionally.
+
+        Returns `{group_name: (scan_values, [CombinationResult, ...])}`, low
+        to high. `scan_values[i]` is the swept correlation itself for a
+        single-pair group, or the C++ reference's fallback `i/(n_steps-1)`
+        fractional progress for a multi-pair group (where no single scalar
+        correlation value applies).
+
+        `compute_impacts` defaults to False here, deliberately diverging from
+        the C++ reference (which always computes full impact tables at every
+        scan point): a correlation scan is about how the combined values,
+        errors and chi2 respond to the correlation assumption, and impact
+        computation is the dominant per-fit cost (see `--no-impacts`), so
+        skipping it by default keeps an `n_steps * n_groups` scan fast.
+        """
+        if n_steps < 2:
+            raise ValueError("scan_correlations: n_steps must be >= 2")
+
+        results: dict[str, tuple[np.ndarray, list[CombinationResult]]] = {}
+        for scan_idx, scan in enumerate(self.config.correlation_scans):
+            if not any(sr.low != sr.high for sr in scan.ranges):
+                continue
+
+            step_results: list[CombinationResult] = []
+            step_values: list[float] = []
+            single_pair = len(scan.ranges) == 1
+            for step in range(n_steps):
+                cfg_step = copy.deepcopy(self.config)
+                for sr in cfg_step.correlation_scans[scan_idx].ranges:
+                    sr.nominal = sr.low + step * (sr.high - sr.low) / (n_steps - 1)
+
+                # The per-step Combiner is deliberately built non-verbose: a
+                # full phase breakdown per step per group would be far too
+                # noisy. Instead we print our own coarser per-step line here,
+                # timed from this loop, while the inner combine() stays
+                # silent regardless of self.verbose.
+                t0 = time.perf_counter()
+                step_results.append(
+                    Combiner(
+                        cfg_step, self.meas_data, use_pearson=self.use_pearson,
+                        prefix=self.prefix, compute_impacts=compute_impacts,
+                    ).combine()
+                )
+                self._vtime(f"scan '{scan.name}' step {step + 1}/{n_steps}", t0)
+                if single_pair:
+                    sr0 = scan.ranges[0]
+                    step_values.append(sr0.low + step * (sr0.high - sr0.low) / (n_steps - 1))
+                else:
+                    step_values.append(step / (n_steps - 1))
+
+            results[scan.name] = (np.asarray(step_values), step_results)
+
+        return results
 
     # ------------------------------------------------------------------
     # Private helpers
@@ -421,26 +640,73 @@ class Combiner:
 
         return x0
 
-    def _minimize(self, chi2_fn, grad_fn, x0: np.ndarray):
-        """Two-pass L-BFGS-B minimization."""
-        def _scipy_grad(pars):
-            return np.array(grad_fn(jnp.array(pars, dtype=jnp.float64)))
+    def _minimize(self, value_and_grad_fn, x0: np.ndarray, hess_fn=None,
+                  quadratic_fast_path: bool = False):
+        """
+        Find the chi2 minimum.
+
+        `value_and_grad_fn` is a single jitted jax.value_and_grad callable, so
+        each evaluation point triggers exactly one forward+backward XLA
+        dispatch (instead of separately dispatching a jitted `fun` and a
+        jitted `jac`, which would recompute the forward pass twice per point
+        since reverse-mode autodiff already performs it as part of the
+        gradient). Wired to scipy via the `jac=True` convention: `fun` returns
+        a `(value, gradient)` tuple.
+
+        Fast path (quadratic_fast_path=True): the chi2 is an exact quadratic
+        form in `pars` with a parameter-independent Hessian H (this holds
+        whenever every systematic response is symmetric, no systematic is
+        "relative", and Pearson rescaling is off — see the gating logic in
+        combine()). For such a chi2 the gradient is exactly linear,
+        grad(p) = H @ (p - p_min), so the true minimum is reachable from ANY
+        starting point in one linear solve:
+
+            p_min = p0 - solve(H, grad(p0))
+
+        No iterative optimizer is needed, and the result is exact (up to
+        floating point), so `converged` is unconditionally True.
+
+        General path (otherwise): the existing robust two-pass L-BFGS-B,
+        followed by a single Newton-correction step using the exact Hessian
+        evaluated at the L-BFGS-B solution. L-BFGS-B already lands inside the
+        basin where Newton's quadratic convergence applies, so this step is
+        safe and cheap; it just buys back precision (closer to machine
+        epsilon) on top of the validated L-BFGS-B result, which is otherwise
+        left untouched.
+        """
+        if quadratic_fast_path:
+            assert hess_fn is not None, "quadratic_fast_path requires hess_fn"
+            p0 = jnp.array(x0, dtype=jnp.float64)
+            H = np.array(hess_fn(p0))
+            _, g0 = value_and_grad_fn(p0)
+            g0 = np.array(g0)
+            step = np.linalg.solve(H, g0)
+            p_min = np.array(x0, dtype=np.float64) - step
+            p_min_j = jnp.array(p_min, dtype=jnp.float64)
+            chi2_min, _ = value_and_grad_fn(p_min_j)
+            # Exact linear solve, not an iterative outcome that can fail to
+            # converge.
+            return p_min_j, float(chi2_min), True
+
+        def _fun_and_grad(pars):
+            v, g = value_and_grad_fn(jnp.array(pars, dtype=jnp.float64))
+            return float(v), np.array(g)
 
         # Pass 1: loose tolerance
         res1 = minimize(
-            lambda p: float(chi2_fn(jnp.array(p, dtype=jnp.float64))),
+            _fun_and_grad,
             x0,
             method="L-BFGS-B",
-            jac=_scipy_grad,
+            jac=True,
             options={"maxiter": 2000, "ftol": 1e-9, "gtol": 1e-5},
         )
 
         # Pass 2: precision
         res2 = minimize(
-            lambda p: float(chi2_fn(jnp.array(p, dtype=jnp.float64))),
+            _fun_and_grad,
             res1.x,
             method="L-BFGS-B",
-            jac=_scipy_grad,
+            jac=True,
             options={"maxiter": 5000, "ftol": 1e-15, "gtol": 1e-9},
         )
 
@@ -450,11 +716,44 @@ class Combiner:
         # (res2.fun < res1.fun + 1e-6) was meaningless: pass 2 starts from
         # pass 1's point, so it is true for essentially every fit, converged or
         # not.
-        gnorm = float(np.linalg.norm(
-            np.array(grad_fn(jnp.array(res2.x, dtype=jnp.float64)))
-        ))
+        x_best = res2.x
+        fun_best = res2.fun
+        _, g_final = value_and_grad_fn(jnp.array(x_best, dtype=jnp.float64))
+        gnorm = float(np.linalg.norm(np.array(g_final)))
         converged = bool(res2.success or gnorm < 1e-4)
-        return jnp.array(res2.x, dtype=jnp.float64), res2.fun, converged
+
+        # Newton-correction polish using the exact Hessian, evaluated once at
+        # the L-BFGS-B solution. L-BFGS-B already lands inside the basin where
+        # Newton's quadratic convergence applies, so this is a cheap precision
+        # refinement layered on top of the (unmodified) robust optimizer
+        # above, not a replacement for it. Guarded so it can only improve
+        # things: if the Hessian solve fails, or the resulting point is not
+        # at least as good (lower or equal chi2 and gradient norm), fall back
+        # to the L-BFGS-B result unchanged.
+        if hess_fn is not None:
+            try:
+                p_best = jnp.array(x_best, dtype=jnp.float64)
+                H_best = np.array(hess_fn(p_best))
+                g_best = np.array(g_final)
+                step = np.linalg.solve(H_best, g_best)
+                p_polished = np.array(x_best, dtype=np.float64) - step
+                p_polished_j = jnp.array(p_polished, dtype=jnp.float64)
+                chi2_polished, g_polished = value_and_grad_fn(p_polished_j)
+                chi2_polished = float(chi2_polished)
+                if np.all(np.isfinite(p_polished)) and chi2_polished <= fun_best:
+                    gnorm_polished = float(np.linalg.norm(np.array(g_polished)))
+                    # Only accept if it's at least as good in gradient norm
+                    # too (chi2 at a quadratic-ish minimum can be flat enough
+                    # that a tiny chi2 improvement hides a worse gradient).
+                    if gnorm_polished <= gnorm:
+                        x_best = p_polished
+                        fun_best = chi2_polished
+                        gnorm = gnorm_polished
+                        converged = bool(converged or gnorm < 1e-4)
+            except np.linalg.LinAlgError:
+                pass  # keep the L-BFGS-B result unchanged
+
+        return jnp.array(x_best, dtype=jnp.float64), fun_best, converged
 
     def _minimize_frozen(self, chi2_fn, grad_fn, p_init, frozen_idx, frozen_vals, options):
         """

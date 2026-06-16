@@ -1,0 +1,110 @@
+[global]
+
+	isDifferential = false
+	normalise = false
+
+[end global]
+
+[inputs]
+
+	nFiles = 2
+	file0 = ATLAS13TeV_ConvinoInput_withSystsSmoothed.txt
+	file1 = ATLAS8TeV_ConvinoInput_withSystsSmoothed.txt
+
+[end inputs]
+
+[observables]
+
+	ATLAS_8TeV_2012_lj_abs_rho_0p0_0p25 = ATLAS_8TeV_2012_lj_abs_rho_0p0_0p25
+	ATLAS_8TeV_2012_lj_abs_rho_0p25_0p325 = ATLAS_8TeV_2012_lj_abs_rho_0p25_0p325
+	ATLAS_8TeV_2012_lj_abs_rho_0p325_0p425 = ATLAS_8TeV_2012_lj_abs_rho_0p325_0p425
+	ATLAS_8TeV_2012_lj_abs_rho_0p425_0p525 = ATLAS_8TeV_2012_lj_abs_rho_0p425_0p525
+	ATLAS_8TeV_2012_lj_abs_rho_0p525_0p675 = ATLAS_8TeV_2012_lj_abs_rho_0p525_0p675
+	ATLAS_8TeV_2012_lj_abs_rho_0p675_0p725 = ATLAS_8TeV_2012_lj_abs_rho_0p675_0p725
+	ATLAS_8TeV_2012_lj_abs_rho_0p725_0p775 = ATLAS_8TeV_2012_lj_abs_rho_0p725_0p775
+	ATLAS_8TeV_2012_lj_abs_rho_0p775_1p0 = ATLAS_8TeV_2012_lj_abs_rho_0p775_1p0
+
+	ATLAS_13TeV_201518_dil_abs_rho_0p0_0p25 = ATLAS_13TeV_201518_dil_abs_rho_0p0_0p25
+	ATLAS_13TeV_201518_dil_abs_rho_0p25_0p4 = ATLAS_13TeV_201518_dil_abs_rho_0p25_0p4
+	ATLAS_13TeV_201518_dil_abs_rho_0p4_0p5 = ATLAS_13TeV_201518_dil_abs_rho_0p4_0p5
+	ATLAS_13TeV_201518_dil_abs_rho_0p5_0p6 = ATLAS_13TeV_201518_dil_abs_rho_0p5_0p6
+	ATLAS_13TeV_201518_dil_abs_rho_0p6_0p7 = ATLAS_13TeV_201518_dil_abs_rho_0p6_0p7
+	ATLAS_13TeV_201518_dil_abs_rho_0p7_0p8 = ATLAS_13TeV_201518_dil_abs_rho_0p7_0p8
+	ATLAS_13TeV_201518_dil_abs_rho_0p8_1p0 = ATLAS_13TeV_201518_dil_abs_rho_0p8_1p0
+
+[end observables]
+
+[correlations]
+
+	#!FILE  =  extra_correlations.txt
+
+[end correlations]
+
+[uncertainty impacts]
+
+ATLAS_8TeV_scale_j = ATLAS_8TeV_scale_j_Det1 + ATLAS_8TeV_scale_j_Det2 + ATLAS_8TeV_scale_j_Det3 + ATLAS_8TeV_scale_j_EtaIntercalibrationModel + ATLAS_8TeV_scale_j_EtaIntercalibrationTotalStat + ATLAS_8TeV_scale_j_flavorcomp + ATLAS_8TeV_scale_j_flavorresponse + ATLAS_8TeV_scale_j_Mix1 + ATLAS_8TeV_scale_j_Mix2 + ATLAS_8TeV_scale_j_Mix3 + ATLAS_8TeV_scale_j_Mix4 + ATLAS_8TeV_scale_j_Model1 + ATLAS_8TeV_scale_j_Model2 + ATLAS_8TeV_scale_j_Model3 + ATLAS_8TeV_scale_j_Model4 + ATLAS_8TeV_scale_j_PileupOffsetMu + ATLAS_8TeV_scale_j_PileupOffsetNPV + ATLAS_8TeV_scale_j_PileupPt + ATLAS_8TeV_scale_j_PileupRho + ATLAS_8TeV_scale_j_PunchThrough + ATLAS_8TeV_scale_j_SinglePart + ATLAS_8TeV_scale_j_Stat1 + ATLAS_8TeV_scale_j_Stat2 + ATLAS_8TeV_scale_j_Stat3 + ATLAS_8TeV_scale_j_Stat4
+
+ATLAS_8TeV_eff_j = ATLAS_8TeV_eff_j + ATLAS_8TeV_eff_j_jvf + ATLAS_8TeV_eff_j_jvfmistag
+
+ATLAS_8TeV_res_j =   ATLAS_8TeV_res_j_diff + ATLAS_8TeV_res_j_noiseforward + ATLAS_8TeV_res_j_np0 + ATLAS_8TeV_res_j_np1 + ATLAS_8TeV_res_j_np2 + ATLAS_8TeV_res_j_np3 + ATLAS_8TeV_res_j_np4 + ATLAS_8TeV_res_j_np5 + ATLAS_8TeV_res_j_np6 + ATLAS_8TeV_res_j_np7 + ATLAS_8TeV_res_j_np8
+
+ATLAS_8TeV_pdf = ATLAS_8TeV_pdf_0 + ATLAS_8TeV_pdf_1 + ATLAS_8TeV_pdf_10 + ATLAS_8TeV_pdf_11 + ATLAS_8TeV_pdf_12 + ATLAS_8TeV_pdf_13 + ATLAS_8TeV_pdf_14 + ATLAS_8TeV_pdf_15 + ATLAS_8TeV_pdf_16 + ATLAS_8TeV_pdf_17 + ATLAS_8TeV_pdf_18 + ATLAS_8TeV_pdf_19 + ATLAS_8TeV_pdf_2 + ATLAS_8TeV_pdf_20 + ATLAS_8TeV_pdf_21 + ATLAS_8TeV_pdf_22 + ATLAS_8TeV_pdf_23 + ATLAS_8TeV_pdf_24 + ATLAS_8TeV_pdf_25 + ATLAS_8TeV_pdf_26 + ATLAS_8TeV_pdf_27 + ATLAS_8TeV_pdf_28 + ATLAS_8TeV_pdf_29 + ATLAS_8TeV_pdf_3 + ATLAS_8TeV_pdf_30 + ATLAS_8TeV_pdf_31 + ATLAS_8TeV_pdf_32 + ATLAS_8TeV_pdf_33 + ATLAS_8TeV_pdf_34 + ATLAS_8TeV_pdf_35 + ATLAS_8TeV_pdf_36 + ATLAS_8TeV_pdf_37 + ATLAS_8TeV_pdf_38 + ATLAS_8TeV_pdf_39 + ATLAS_8TeV_pdf_4 + ATLAS_8TeV_pdf_40 + ATLAS_8TeV_pdf_41 + ATLAS_8TeV_pdf_42 + ATLAS_8TeV_pdf_43 + ATLAS_8TeV_pdf_44 + ATLAS_8TeV_pdf_45 + ATLAS_8TeV_pdf_46 + ATLAS_8TeV_pdf_47 + ATLAS_8TeV_pdf_48 + ATLAS_8TeV_pdf_49 + ATLAS_8TeV_pdf_5 + ATLAS_8TeV_pdf_50 + ATLAS_8TeV_pdf_51 + ATLAS_8TeV_pdf_52 + ATLAS_8TeV_pdf_6 + ATLAS_8TeV_pdf_7 + ATLAS_8TeV_pdf_8 + ATLAS_8TeV_pdf_9
+
+ATLAS_8TeV_modeling_tt = ATLAS_8TeV_modelling_ttbar_ColorReconnection + ATLAS_8TeV_modelling_ttbar_MatrixElement + ATLAS_8TeV_modelling_ttbar_Radiation + ATLAS_8TeV_modelling_ttbar_ShowerHadronization + ATLAS_8TeV_modelling_ttbar_UnderlyingEvent +
+
+ATLAS_8TeV_eff_b = ATLAS_8TeV_eff_b_heavy_0 + ATLAS_8TeV_eff_b_heavy_1 + ATLAS_8TeV_eff_b_heavy_2 + ATLAS_8TeV_eff_b_heavy_3 + ATLAS_8TeV_eff_b_heavy_4 + ATLAS_8TeV_eff_b_heavy_5 + ATLAS_8TeV_eff_b_heavy_6 + ATLAS_8TeV_eff_b_heavy_7 + ATLAS_8TeV_eff_b_heavy_8 + ATLAS_8TeV_eff_b_heavy_highpte +  ATLAS_8TeV_eff_b_light
+
+ATLAS_8TeV_scale_b = ATLAS_8TeV_scale_b
+
+ATLAS_8TeV_fake = ATLAS_8TeV_fake_j_FAKEALTERNATE + ATLAS_8TeV_fake_j_FAKEMCUP + ATLAS_8TeV_fake_j_PARALTERNATE + ATLAS_8TeV_fake_j_REALALTERNATE = absolute
+
+ATLAS_8TeV_scale_m = ATLAS_8TeV_res_m + ATLAS_8TeV_scale_m
+
+ATLAS_8TeV_eff_m = ATLAS_8TeV_eff_m
+
+ATLAS_8TeV_scale_met = ATLAS_8TeV_res_met + ATLAS_8TeV_scale_met
+
+ATLAS_8TeV_scale_e = ATLAS_8TeV_res_e + ATLAS_8TeV_scale_e
+
+ATLAS_8TeV_norm_bkg = ATLAS_8TeV_norm_singletop + ATLAS_8TeV_norm_wjets + ATLAS_8TeV_norm_zjets
+
+ATLAS_8TeV_fake_j = ATLAS_8TeV_fake_j_FAKEALTERNATE + ATLAS_8TeV_fake_j_FAKEMCUP + ATLAS_8TeV_fake_j_PARALTERNATE + ATLAS_8TeV_fake_j_REALALTERNATE
+
+
+################################################
+######################## 13 TeV uncertainties
+################################################
+
+ATLAS_13TeV_eff_b = ATLAS_13TeV_eff_b_heavy_0 + ATLAS_13TeV_eff_b_heavy_1 + ATLAS_13TeV_eff_b_heavy_2 + ATLAS_13TeV_eff_b_heavy_3 + ATLAS_13TeV_eff_b_heavy_4 + ATLAS_13TeV_eff_b_heavy_5 + ATLAS_13TeV_eff_b_heavy_6 + ATLAS_13TeV_eff_b_heavy_7 + ATLAS_13TeV_eff_b_heavy_8 + ATLAS_13TeV_eff_b_light_0 + ATLAS_13TeV_eff_b_light_1 + ATLAS_13TeV_eff_b_light_2 + ATLAS_13TeV_eff_b_light_3 + ATLAS_13TeV_eff_b_c_0 + ATLAS_13TeV_eff_b_c_1 + ATLAS_13TeV_eff_b_c_2 + ATLAS_13TeV_eff_b_c_3 + ATLAS_13TeV_eff_extrapolation + ATLAS_13TeV_eff_extrapolationfromcharm
+
+ATLAS_13TeV_scale_e = ATLAS_13TeV_res_e_all + ATLAS_13TeV_scale_e_FastSim + ATLAS_13TeV_scale_e_
+
+ATLAS_13TeV_eff_e = ATLAS_13TeV_eff_e_SFID + ATLAS_13TeV_eff_e_SFIsol + ATLAS_13TeV_eff_e_SFReco + ATLAS_13TeV_eff_e_SFTrigger
+
+ATLAS_13TeV_scale_m = ATLAS_13TeV_scale_m_SCALE + ATLAS_13TeV_scale_m_CB + ATLAS_13TeV_res_m_DATASTAT + ATLAS_13TeV_res_m_RESBIAS
+
+ATLAS_13TeV_eff_m = ATLAS_13TeV_eff_m_IDSTAT + ATLAS_13TeV_eff_m_IDSTATLOWPT + ATLAS_13TeV_eff_m_IDSYST + ATLAS_13TeV_eff_m_IDSYSTLOWPT + ATLAS_13TeV_eff_m_IsolSTAT + ATLAS_13TeV_eff_m_IsolSYST + ATLAS_13TeV_eff_m_TriggerSTAT + ATLAS_13TeV_eff_m_TriggerSYST + ATLAS_13TeV_eff_m_TTVASTAT + ATLAS_13TeV_eff_m_TTVASYST
+
+ATLAS_13TeV_scale_j = ATLAS_13TeV_scale_j_NPDetector1 + ATLAS_13TeV_scale_j_NPDetector2 + ATLAS_13TeV_scale_j_NPMixed1 + ATLAS_13TeV_scale_j_NPMixed2 + ATLAS_13TeV_scale_j_NPMixed3 + ATLAS_13TeV_scale_j_NPModelling1 + ATLAS_13TeV_scale_j_NPModelling2 + ATLAS_13TeV_scale_j_NPModelling3 + ATLAS_13TeV_scale_j_NPModelling4 + ATLAS_13TeV_scale_j_NPStatistical1 + ATLAS_13TeV_scale_j_NPStatistical2 + ATLAS_13TeV_scale_j_NPStatistical3 + ATLAS_13TeV_scale_j_NPStatistical4 + ATLAS_13TeV_scale_j_NPStatistical5 + ATLAS_13TeV_scale_j_NPStatistical6 + ATLAS_13TeV_scale_j_EtaIntercalibrationModelling + ATLAS_13TeV_scale_j_EtaIntercalibrationNonClosure2018data + ATLAS_13TeV_scale_j_EtaIntercalibrationNonClosurehighE + ATLAS_13TeV_scale_j_EtaIntercalibrationNonClosurenegEta + ATLAS_13TeV_scale_j_EtaIntercalibrationNonClosureposEta + ATLAS_13TeV_scale_j_EtaIntercalibrationTotalStat + ATLAS_13TeV_scale_j_FlavorCompositionprop + ATLAS_13TeV_scale_b_prop + ATLAS_13TeV_scale_j_PerJetGenShower + ATLAS_13TeV_scale_j_PerJetGenShowerHF + ATLAS_13TeV_scale_j_PerJetHadronization + ATLAS_13TeV_scale_j_PerJetHadronizationHF + ATLAS_13TeV_scale_j_PerJetShower + ATLAS_13TeV_scale_j_PerJetShowerHF + ATLAS_13TeV_scale_j_PileupOffsetMu + ATLAS_13TeV_scale_j_PileupOffsetNPV + ATLAS_13TeV_scale_j_PileupPtTerm + ATLAS_13TeV_scale_j_PileupRhoTopology + ATLAS_13TeV_scale_j_PunchThroughMC16 + ATLAS_13TeV_scale_j_SingleParticleHighPt
+
+ATLAS_13TeV_res_j = ATLAS_13TeV_res_j_DataVsMCMC16 + ATLAS_13TeV_res_j_EffectiveNP1 + ATLAS_13TeV_res_j_EffectiveNP2 + ATLAS_13TeV_res_j_EffectiveNP3 + ATLAS_13TeV_res_j_EffectiveNP4 + ATLAS_13TeV_res_j_EffectiveNP5 + ATLAS_13TeV_res_j_EffectiveNP6 + ATLAS_13TeV_res_j_EffectiveNP7 + ATLAS_13TeV_res_j_EffectiveNP8 + ATLAS_13TeV_res_j_EffectiveNP9 + ATLAS_13TeV_res_j_EffectiveNP10 + ATLAS_13TeV_res_j_EffectiveNP11 + ATLAS_13TeV_res_j_EffectiveNP12restTerm
+
+ATLAS_13TeV_eff_j = ATLAS_13TeV_eff_j_jvt
+
+ATLAS_13TeV_lumi = ATLAS_13TeV_lumi
+
+ATLAS_13TeV_scale_met = ATLAS_13TeV_res_met_Para + ATLAS_13TeV_res_met_Perp + ATLAS_13TeV_scale_met
+
+ATLAS_13TeV_fake_j = ATLAS_13TeV_fake_j_norm
+
+ATLAS_13TeV_pileup = ATLAS_13TeV_pileup
+
+ATLAS_13TeV_norm = ATLAS_13TeV_norm_diboson + ATLAS_13TeV_norm_tW + ATLAS_13TeV_norm_ttVplusttH + ATLAS_13TeV_norm_zjets
+
+ATLAS_13TeV_modelling_ttbar = ATLAS_13TeV_modelling_ttbar_mTopMC + ATLAS_13TeV_modelling_ttbar_Herwig + ATLAS_13TeV_modelling_ttbar_A14Var1Up + ATLAS_13TeV_modelling_ttbar_ATLCR2 + ATLAS_13TeV_modelling_ttbar_hdamp3mt + ATLAS_13TeV_modelling_ttbar_isrmuRfac1p0fsrmuRfac0p5 + ATLAS_13TeV_modelling_ttbar_muR1p0muF2p0 + ATLAS_13TeV_modelling_ttbar_muR2p0muF1p0 + ATLAS_13TeV_modelling_ttbar_PtHard1 + ATLAS_13TeV_modelling_ttbar_Trec + ATLAS_13TeV_modelling_ttbar_TtbarNNLOReweight + ATLAS_13TeV_modelling_ttbar_Var3cUp + ATLAS_13TeV_modelling_ttbar_lineshape
+
+ATLAS_13TeV_modelling_singletop = ATLAS_13TeV_modelling_singletop_DSvsDR
+
+ATLAS_13TeV_pdf = ATLAS_13TeV_pdf_90901 + ATLAS_13TeV_pdf_90902 + ATLAS_13TeV_pdf_90903 + ATLAS_13TeV_pdf_90904 + ATLAS_13TeV_pdf_90905 + ATLAS_13TeV_pdf_90906 + ATLAS_13TeV_pdf_90907 + ATLAS_13TeV_pdf_90908 + ATLAS_13TeV_pdf_90909 + ATLAS_13TeV_pdf_90910 + ATLAS_13TeV_pdf_90911 + ATLAS_13TeV_pdf_90912 + ATLAS_13TeV_pdf_90913 + ATLAS_13TeV_pdf_90914 + ATLAS_13TeV_pdf_90915 + ATLAS_13TeV_pdf_90916 + ATLAS_13TeV_pdf_90917 + ATLAS_13TeV_pdf_90918 + ATLAS_13TeV_pdf_90919 + ATLAS_13TeV_pdf_90920 + ATLAS_13TeV_pdf_90921 + ATLAS_13TeV_pdf_90922 + ATLAS_13TeV_pdf_90923 + ATLAS_13TeV_pdf_90924 + ATLAS_13TeV_pdf_90925 + ATLAS_13TeV_pdf_90926 + ATLAS_13TeV_pdf_90927 + ATLAS_13TeV_pdf_90928 + ATLAS_13TeV_pdf_90929 + ATLAS_13TeV_pdf_90930
+
+[end uncertainty impacts]

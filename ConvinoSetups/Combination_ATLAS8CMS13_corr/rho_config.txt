@@ -1,0 +1,92 @@
+[global]
+
+	isDifferential = false
+	normalise = false
+
+[end global]
+
+[inputs]
+
+	nFiles = 2
+	file0 = CMS_13TeV_2016_dil_inputs.txt
+	file1 = ATLAS8TeV_ConvinoInput_withSystsSmoothed.txt
+
+[end inputs]
+
+[observables]
+
+	CMS_13TeV_2016_dil_absDivBinWidth_rho_0p0_0p3 = CMS_13TeV_2016_dil_absDivBinWidth_rho_0p0_0p3
+	CMS_13TeV_2016_dil_absDivBinWidth_rho_0p3_0p45 = CMS_13TeV_2016_dil_absDivBinWidth_rho_0p3_0p45
+	CMS_13TeV_2016_dil_absDivBinWidth_rho_0p45_0p7 = CMS_13TeV_2016_dil_absDivBinWidth_rho_0p45_0p7
+	CMS_13TeV_2016_dil_absDivBinWidth_rho_0p7_1p0 = CMS_13TeV_2016_dil_absDivBinWidth_rho_0p7_1p0
+
+	ATLAS_8TeV_2012_lj_abs_rho_0p0_0p25 = ATLAS_8TeV_2012_lj_abs_rho_0p0_0p25
+	ATLAS_8TeV_2012_lj_abs_rho_0p25_0p325 = ATLAS_8TeV_2012_lj_abs_rho_0p25_0p325
+	ATLAS_8TeV_2012_lj_abs_rho_0p325_0p425 = ATLAS_8TeV_2012_lj_abs_rho_0p325_0p425
+	ATLAS_8TeV_2012_lj_abs_rho_0p425_0p525 = ATLAS_8TeV_2012_lj_abs_rho_0p425_0p525
+	ATLAS_8TeV_2012_lj_abs_rho_0p525_0p675 = ATLAS_8TeV_2012_lj_abs_rho_0p525_0p675
+	ATLAS_8TeV_2012_lj_abs_rho_0p675_0p725 = ATLAS_8TeV_2012_lj_abs_rho_0p675_0p725
+	ATLAS_8TeV_2012_lj_abs_rho_0p725_0p775 = ATLAS_8TeV_2012_lj_abs_rho_0p725_0p775
+	ATLAS_8TeV_2012_lj_abs_rho_0p775_1p0 = ATLAS_8TeV_2012_lj_abs_rho_0p775_1p0
+
+[end observables]
+
+[correlations]
+
+	#!FILE  =  extra_correlations.txt
+
+[end correlations]
+
+[uncertainty impacts]
+
+ATLAS_8TeV_scale_j = ATLAS_8TeV_scale_j_Det1 + ATLAS_8TeV_scale_j_Det2 + ATLAS_8TeV_scale_j_Det3 + ATLAS_8TeV_scale_j_EtaIntercalibrationModel + ATLAS_8TeV_scale_j_EtaIntercalibrationTotalStat + ATLAS_8TeV_scale_j_flavorcomp + ATLAS_8TeV_scale_j_flavorresponse + ATLAS_8TeV_scale_j_Mix1 + ATLAS_8TeV_scale_j_Mix2 + ATLAS_8TeV_scale_j_Mix3 + ATLAS_8TeV_scale_j_Mix4 + ATLAS_8TeV_scale_j_Model1 + ATLAS_8TeV_scale_j_Model2 + ATLAS_8TeV_scale_j_Model3 + ATLAS_8TeV_scale_j_Model4 + ATLAS_8TeV_scale_j_PileupOffsetMu + ATLAS_8TeV_scale_j_PileupOffsetNPV + ATLAS_8TeV_scale_j_PileupPt + ATLAS_8TeV_scale_j_PileupRho + ATLAS_8TeV_scale_j_PunchThrough + ATLAS_8TeV_scale_j_SinglePart + ATLAS_8TeV_scale_j_Stat1 + ATLAS_8TeV_scale_j_Stat2 + ATLAS_8TeV_scale_j_Stat3 + ATLAS_8TeV_scale_j_Stat4
+
+ATLAS_8TeV_eff_j = ATLAS_8TeV_eff_j + ATLAS_8TeV_eff_j_jvf + ATLAS_8TeV_eff_j_jvfmistag
+
+ATLAS_8TeV_res_j =   ATLAS_8TeV_res_j_diff + ATLAS_8TeV_res_j_noiseforward + ATLAS_8TeV_res_j_np0 + ATLAS_8TeV_res_j_np1 + ATLAS_8TeV_res_j_np2 + ATLAS_8TeV_res_j_np3 + ATLAS_8TeV_res_j_np4 + ATLAS_8TeV_res_j_np5 + ATLAS_8TeV_res_j_np6 + ATLAS_8TeV_res_j_np7 + ATLAS_8TeV_res_j_np8
+
+ATLAS_8TeV_pdf = ATLAS_8TeV_pdf_0 + ATLAS_8TeV_pdf_1 + ATLAS_8TeV_pdf_10 + ATLAS_8TeV_pdf_11 + ATLAS_8TeV_pdf_12 + ATLAS_8TeV_pdf_13 + ATLAS_8TeV_pdf_14 + ATLAS_8TeV_pdf_15 + ATLAS_8TeV_pdf_16 + ATLAS_8TeV_pdf_17 + ATLAS_8TeV_pdf_18 + ATLAS_8TeV_pdf_19 + ATLAS_8TeV_pdf_2 + ATLAS_8TeV_pdf_20 + ATLAS_8TeV_pdf_21 + ATLAS_8TeV_pdf_22 + ATLAS_8TeV_pdf_23 + ATLAS_8TeV_pdf_24 + ATLAS_8TeV_pdf_25 + ATLAS_8TeV_pdf_26 + ATLAS_8TeV_pdf_27 + ATLAS_8TeV_pdf_28 + ATLAS_8TeV_pdf_29 + ATLAS_8TeV_pdf_3 + ATLAS_8TeV_pdf_30 + ATLAS_8TeV_pdf_31 + ATLAS_8TeV_pdf_32 + ATLAS_8TeV_pdf_33 + ATLAS_8TeV_pdf_34 + ATLAS_8TeV_pdf_35 + ATLAS_8TeV_pdf_36 + ATLAS_8TeV_pdf_37 + ATLAS_8TeV_pdf_38 + ATLAS_8TeV_pdf_39 + ATLAS_8TeV_pdf_4 + ATLAS_8TeV_pdf_40 + ATLAS_8TeV_pdf_41 + ATLAS_8TeV_pdf_42 + ATLAS_8TeV_pdf_43 + ATLAS_8TeV_pdf_44 + ATLAS_8TeV_pdf_45 + ATLAS_8TeV_pdf_46 + ATLAS_8TeV_pdf_47 + ATLAS_8TeV_pdf_48 + ATLAS_8TeV_pdf_49 + ATLAS_8TeV_pdf_5 + ATLAS_8TeV_pdf_50 + ATLAS_8TeV_pdf_51 + ATLAS_8TeV_pdf_52 + ATLAS_8TeV_pdf_6 + ATLAS_8TeV_pdf_7 + ATLAS_8TeV_pdf_8 + ATLAS_8TeV_pdf_9
+
+ATLAS_8TeV_modeling_tt = ATLAS_8TeV_modelling_ttbar_ColorReconnection + ATLAS_8TeV_modelling_ttbar_MatrixElement + ATLAS_8TeV_modelling_ttbar_Radiation + ATLAS_8TeV_modelling_ttbar_ShowerHadronization + ATLAS_8TeV_modelling_ttbar_UnderlyingEvent +
+
+ATLAS_8TeV_eff_b = ATLAS_8TeV_eff_b_heavy_0 + ATLAS_8TeV_eff_b_heavy_1 + ATLAS_8TeV_eff_b_heavy_2 + ATLAS_8TeV_eff_b_heavy_3 + ATLAS_8TeV_eff_b_heavy_4 + ATLAS_8TeV_eff_b_heavy_5 + ATLAS_8TeV_eff_b_heavy_6 + ATLAS_8TeV_eff_b_heavy_7 + ATLAS_8TeV_eff_b_heavy_8 + ATLAS_8TeV_eff_b_heavy_highpte +  ATLAS_8TeV_eff_b_light
+
+ATLAS_8TeV_scale_b = ATLAS_8TeV_scale_b
+
+ATLAS_8TeV_fake = ATLAS_8TeV_fake_j_FAKEALTERNATE + ATLAS_8TeV_fake_j_FAKEMCUP + ATLAS_8TeV_fake_j_PARALTERNATE + ATLAS_8TeV_fake_j_REALALTERNATE = absolute
+
+ATLAS_8TeV_scale_m = ATLAS_8TeV_res_m + ATLAS_8TeV_scale_m
+
+ATLAS_8TeV_eff_m = ATLAS_8TeV_eff_m
+
+ATLAS_8TeV_scale_met = ATLAS_8TeV_res_met + ATLAS_8TeV_scale_met
+
+ATLAS_8TeV_scale_e = ATLAS_8TeV_res_e + ATLAS_8TeV_scale_e
+
+ATLAS_8TeV_norm_bkg = ATLAS_8TeV_norm_singletop + ATLAS_8TeV_norm_wjets + ATLAS_8TeV_norm_zjets
+
+ATLAS_8TeV_fake_j = ATLAS_8TeV_fake_j_FAKEALTERNATE + ATLAS_8TeV_fake_j_FAKEMCUP + ATLAS_8TeV_fake_j_PARALTERNATE + ATLAS_8TeV_fake_j_REALALTERNATE
+
+
+CMS_MC_stat = CMS_prop_binee_NoRho_OneJet_OneB_bin0 + CMS_prop_binee_NoRho_TwoJ_GreaterOneB_bin0 + CMS_prop_binee_NoRho_TwoJ_OneB_bin0 + CMS_prop_binee_Rho03to045_GTwoJ_GreaterOneB_bin0 + CMS_prop_binee_Rho03to045_GTwoJ_OneB_bin0 + CMS_prop_binee_Rho045to07_GTwoJ_GreaterOneB_bin0 + CMS_prop_binee_Rho045to07_GTwoJ_OneB_bin0 + CMS_prop_binee_Rho07to1_GTwoJ_GreaterOneB_bin0 + CMS_prop_binee_Rho07to1_GTwoJ_OneB_bin0 + CMS_prop_binee_Rho0to03_GTwoJ_GreaterOneB_bin0 + CMS_prop_binee_Rho0to03_GTwoJ_OneB_bin0 + CMS_prop_binemu_NoRho_OneJet_OneB_bin0 + CMS_prop_binemu_NoRho_OneJet_OneB_bin1 + CMS_prop_binemu_NoRho_OneJet_OneB_bin2 + CMS_prop_binemu_NoRho_TwoJ_GreaterOneB_bin0 + CMS_prop_binemu_NoRho_TwoJ_GreaterOneB_bin1 + CMS_prop_binemu_NoRho_TwoJ_GreaterOneB_bin2 + CMS_prop_binemu_NoRho_TwoJ_GreaterOneB_bin3 + CMS_prop_binemu_NoRho_TwoJ_GreaterOneB_bin4 + CMS_prop_binemu_NoRho_TwoJ_OneB_bin0 + CMS_prop_binemu_NoRho_TwoJ_OneB_bin1 + CMS_prop_binemu_NoRho_TwoJ_OneB_bin2 + CMS_prop_binemu_Rho03to045_GTwoJ_GreaterOneB_bin0 + CMS_prop_binemu_Rho03to045_GTwoJ_GreaterOneB_bin1 + CMS_prop_binemu_Rho03to045_GTwoJ_GreaterOneB_bin2 + CMS_prop_binemu_Rho03to045_GTwoJ_GreaterOneB_bin3 + CMS_prop_binemu_Rho03to045_GTwoJ_OneB_bin0 + CMS_prop_binemu_Rho045to07_GTwoJ_GreaterOneB_bin0 + CMS_prop_binemu_Rho045to07_GTwoJ_GreaterOneB_bin1 + CMS_prop_binemu_Rho045to07_GTwoJ_GreaterOneB_bin2 + CMS_prop_binemu_Rho045to07_GTwoJ_GreaterOneB_bin3 + CMS_prop_binemu_Rho045to07_GTwoJ_GreaterOneB_bin4 + CMS_prop_binemu_Rho045to07_GTwoJ_GreaterOneB_bin5 + CMS_prop_binemu_Rho045to07_GTwoJ_GreaterOneB_bin6 + CMS_prop_binemu_Rho045to07_GTwoJ_GreaterOneB_bin7 + CMS_prop_binemu_Rho045to07_GTwoJ_OneB_bin0 + CMS_prop_binemu_Rho07to1_GTwoJ_GreaterOneB_bin0 + CMS_prop_binemu_Rho07to1_GTwoJ_GreaterOneB_bin1 + CMS_prop_binemu_Rho07to1_GTwoJ_OneB_bin0 + CMS_prop_binemu_Rho0to03_GTwoJ_GreaterOneB_bin0 + CMS_prop_binemu_Rho0to03_GTwoJ_OneB_bin0 + CMS_prop_binmumu_NoRho_OneJet_OneB_bin0 + CMS_prop_binmumu_NoRho_TwoJ_GreaterOneB_bin0 + CMS_prop_binmumu_NoRho_TwoJ_OneB_bin0 + CMS_prop_binmumu_Rho03to045_GTwoJ_GreaterOneB_bin0 + CMS_prop_binmumu_Rho03to045_GTwoJ_OneB_bin0 + CMS_prop_binmumu_Rho045to07_GTwoJ_GreaterOneB_bin0 + CMS_prop_binmumu_Rho045to07_GTwoJ_OneB_bin0 + CMS_prop_binmumu_Rho07to1_GTwoJ_GreaterOneB_bin0 + CMS_prop_binmumu_Rho07to1_GTwoJ_OneB_bin0 + CMS_prop_binmumu_Rho0to03_GTwoJ_GreaterOneB_bin0 + CMS_prop_binmumu_Rho0to03_GTwoJ_OneB_bin0
+CMS_norm_tt0jet = CMS_norm_tt0jet
+CMS_norm_bkg = CMS_norm_diboson + CMS_norm_singletop + CMS_norm_ttbarbackground + CMS_norm_ttbarX + CMS_norm_wjets + CMS_norm_zjets_1b + CMS_norm_zjets_1j + CMS_norm_zjets_2b + CMS_norm_zjets_2j + CMS_norm_zjets_3j
+CMS_modelling_ttbar_pdf =  CMS_modelling_ttbar_pdf_1 + CMS_modelling_ttbar_pdf_10 + CMS_modelling_ttbar_pdf_100 + CMS_modelling_ttbar_pdf_11 + CMS_modelling_ttbar_pdf_12 + CMS_modelling_ttbar_pdf_13 + CMS_modelling_ttbar_pdf_14 + CMS_modelling_ttbar_pdf_15 + CMS_modelling_ttbar_pdf_16 + CMS_modelling_ttbar_pdf_18 + CMS_modelling_ttbar_pdf_19 + CMS_modelling_ttbar_pdf_2 + CMS_modelling_ttbar_pdf_20 + CMS_modelling_ttbar_pdf_21 + CMS_modelling_ttbar_pdf_22 + CMS_modelling_ttbar_pdf_23 + CMS_modelling_ttbar_pdf_24 + CMS_modelling_ttbar_pdf_25 + CMS_modelling_ttbar_pdf_26 + CMS_modelling_ttbar_pdf_27 + CMS_modelling_ttbar_pdf_28 + CMS_modelling_ttbar_pdf_29 + CMS_modelling_ttbar_pdf_3 + CMS_modelling_ttbar_pdf_30 + CMS_modelling_ttbar_pdf_31 + CMS_modelling_ttbar_pdf_32 + CMS_modelling_ttbar_pdf_33 + CMS_modelling_ttbar_pdf_34 + CMS_modelling_ttbar_pdf_35 + CMS_modelling_ttbar_pdf_36 + CMS_modelling_ttbar_pdf_37 + CMS_modelling_ttbar_pdf_38 + CMS_modelling_ttbar_pdf_39 + CMS_modelling_ttbar_pdf_4 + CMS_modelling_ttbar_pdf_40 + CMS_modelling_ttbar_pdf_41 + CMS_modelling_ttbar_pdf_42 + CMS_modelling_ttbar_pdf_43 + CMS_modelling_ttbar_pdf_44 + CMS_modelling_ttbar_pdf_45 + CMS_modelling_ttbar_pdf_46 + CMS_modelling_ttbar_pdf_47 + CMS_modelling_ttbar_pdf_48 + CMS_modelling_ttbar_pdf_49 + CMS_modelling_ttbar_pdf_5 + CMS_modelling_ttbar_pdf_50 + CMS_modelling_ttbar_pdf_51 + CMS_modelling_ttbar_pdf_52 + CMS_modelling_ttbar_pdf_53 + CMS_modelling_ttbar_pdf_54 + CMS_modelling_ttbar_pdf_55 + CMS_modelling_ttbar_pdf_56 + CMS_modelling_ttbar_pdf_57 + CMS_modelling_ttbar_pdf_58 + CMS_modelling_ttbar_pdf_59 + CMS_modelling_ttbar_pdf_6 + CMS_modelling_ttbar_pdf_60 + CMS_modelling_ttbar_pdf_61 + CMS_modelling_ttbar_pdf_62 + CMS_modelling_ttbar_pdf_63 + CMS_modelling_ttbar_pdf_64 + CMS_modelling_ttbar_pdf_65 + CMS_modelling_ttbar_pdf_66 + CMS_modelling_ttbar_pdf_67 + CMS_modelling_ttbar_pdf_68 + CMS_modelling_ttbar_pdf_69 + CMS_modelling_ttbar_pdf_7 + CMS_modelling_ttbar_pdf_70 + CMS_modelling_ttbar_pdf_71 + CMS_modelling_ttbar_pdf_73 + CMS_modelling_ttbar_pdf_74 + CMS_modelling_ttbar_pdf_75 + CMS_modelling_ttbar_pdf_76 + CMS_modelling_ttbar_pdf_77 + CMS_modelling_ttbar_pdf_78 + CMS_modelling_ttbar_pdf_79 + CMS_modelling_ttbar_pdf_8 + CMS_modelling_ttbar_pdf_81 + CMS_modelling_ttbar_pdf_83 + CMS_modelling_ttbar_pdf_84 + CMS_modelling_ttbar_pdf_85 + CMS_modelling_ttbar_pdf_86 + CMS_modelling_ttbar_pdf_87 + CMS_modelling_ttbar_pdf_88 + CMS_modelling_ttbar_pdf_89 + CMS_modelling_ttbar_pdf_9 + CMS_modelling_ttbar_pdf_90 + CMS_modelling_ttbar_pdf_91 + CMS_modelling_ttbar_pdf_92 + CMS_modelling_ttbar_pdf_93 + CMS_modelling_ttbar_pdf_94 + CMS_modelling_ttbar_pdf_95 + CMS_modelling_ttbar_pdf_97 + CMS_modelling_ttbar_pdf_98 + CMS_modelling_ttbar_alphaS
+CMS_scale_m = CMS_scale_m_deltam + CMS_scale_m_ewk + CMS_scale_m_ewk2 + CMS_scale_m_stat + CMS_scale_m_zpt
+CMS_eff_m = CMS_eff_id_m_stat + CMS_eff_m_id_syst + CMS_eff_m_iso_stat + CMS_eff_m_iso_syst
+CMS_scale_j =  CMS_scale_j_absoluteMPFBias + CMS_scale_j_absoluteScale + CMS_scale_j_absoluteStat + CMS_scale_j_flavorBottom + CMS_scale_j_flavorCharm + CMS_scale_j_flavorGluon + CMS_scale_j_fragmentation + CMS_scale_j_pileupDataMC + CMS_scale_j_pileupPtBB + CMS_scale_j_pileupPtEC1 + CMS_scale_j_pileupPtRef + CMS_scale_j_relativeBal + CMS_scale_j_relativeFSR + CMS_scale_j_relativeJEREC1 + CMS_scale_j_relativePtBB + CMS_scale_j_relativePtEC1 + CMS_scale_j_relativeSample + CMS_scale_j_relativeStatEC + CMS_scale_j_relativeStatFSR + CMS_scale_j_singlePionECAL + CMS_scale_j_singlePionHCAL
+CMS_res_j = CMS_res_j_eta0 + CMS_res_j_eta1
+CMS_scale_e = CMS_scale_e_et + CMS_scale_e_gain + CMS_scale_e_syst + CMS_res_e_phi + CMS_res_e_rho
+CMS_eff_e = CMS_eff_e_id + CMS_eff_e_reco
+CMS_eff_b = CMS_eff_b_heavy_jes + CMS_eff_b_light_corr + CMS_eff_b_light_uncorr + CMS_eff_b_heavy_pileup + CMS_eff_b_heavy_stat + CMS_eff_b_heavy_type3
+CMS_modelling_bkg = CMS_modelling_singletop_isr + CMS_modelling_singletop_fsr + CMS_modelling_singletop_muR + CMS_modelling_singletop_muF + CMS_modelling_zjets_muR + CMS_modelling_zjets_muF
+CMS_eff_j = CMS_eff_j_pileup_signal + CMS_eff_j_pileup_mistag
+CMS_modelling_ttbar = CMS_modelling_ttbar_mass + CMS_modelling_ttbar_hdamp + CMS_modelling_ttbar_muF + CMS_modelling_ttbar_muR + CMS_modelling_ttbar_toppt + CMS_modelling_ttbar_tune + CMS_modelling_ttbar_isr + CMS_modelling_ttbar_fsr + CMS_modelling_ttbar_erdOn + CMS_modelling_ttbar_tuneQCD + CMS_modelling_ttbar_tuneGluon
+CMS_eff_trig = CMS_eff_l1Prefiring + CMS_eff_trig_ee + CMS_eff_trig_em + CMS_eff_trig_mm
+CMS_lumi = CMS_lumi
+CMS_met = CMS_met
+CMS_pileup = CMS_pileup
+
+
+
+[end uncertainty impacts]
