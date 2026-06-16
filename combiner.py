@@ -27,6 +27,7 @@ Steps performed:
 
 from __future__ import annotations
 
+import copy
 import warnings
 from dataclasses import dataclass, field
 from typing import Optional
@@ -407,6 +408,72 @@ class Combiner:
             impact_per_systematic=impact_per_systematic,
             cov_per_systematic=cov_per_systematic,
         )
+
+    def scan_correlations(
+        self, n_steps: int = 6, compute_impacts: bool = False
+    ) -> dict[str, tuple[np.ndarray, list["CombinationResult"]]]:
+        """
+        Re-run the combination while sweeping a correlation assumption
+        across its configured range, one named `[correlations]` group at a
+        time. Python port of the C++ `-s` option (`combiner::scanCorrelations`
+        / `single_correlationscan::scanVal`): for a group with a single
+        `(nominal & low : high)` pair, the swept value at step i is
+        `low + i*(high-low)/(n_steps-1)`; for a group with several pairs
+        (moved together in lockstep, one config line scanning more than one
+        systematic pair at once), each pair sweeps its own low/high range at
+        the same step index, matching `single_correlationscan::scanVal` being
+        called per-pair with the shared step. `n_steps=6` matches the
+        original's hardcoded `single_correlationscan::nPoints()`.
+
+        Groups where every pair has `low == high` (no actual range — just a
+        plain nominal correlation, the common case) are skipped: scanning a
+        single point burns a full re-fit for no information, unlike the
+        reference implementation which scans every group unconditionally.
+
+        Returns `{group_name: (scan_values, [CombinationResult, ...])}`, low
+        to high. `scan_values[i]` is the swept correlation itself for a
+        single-pair group, or the C++ reference's fallback `i/(n_steps-1)`
+        fractional progress for a multi-pair group (where no single scalar
+        correlation value applies).
+
+        `compute_impacts` defaults to False here, deliberately diverging from
+        the C++ reference (which always computes full impact tables at every
+        scan point): a correlation scan is about how the combined values,
+        errors and chi2 respond to the correlation assumption, and impact
+        computation is the dominant per-fit cost (see `--no-impacts`), so
+        skipping it by default keeps an `n_steps * n_groups` scan fast.
+        """
+        if n_steps < 2:
+            raise ValueError("scan_correlations: n_steps must be >= 2")
+
+        results: dict[str, tuple[np.ndarray, list[CombinationResult]]] = {}
+        for scan_idx, scan in enumerate(self.config.correlation_scans):
+            if not any(sr.low != sr.high for sr in scan.ranges):
+                continue
+
+            step_results: list[CombinationResult] = []
+            step_values: list[float] = []
+            single_pair = len(scan.ranges) == 1
+            for step in range(n_steps):
+                cfg_step = copy.deepcopy(self.config)
+                for sr in cfg_step.correlation_scans[scan_idx].ranges:
+                    sr.nominal = sr.low + step * (sr.high - sr.low) / (n_steps - 1)
+
+                step_results.append(
+                    Combiner(
+                        cfg_step, self.meas_data, use_pearson=self.use_pearson,
+                        prefix=self.prefix, compute_impacts=compute_impacts,
+                    ).combine()
+                )
+                if single_pair:
+                    sr0 = scan.ranges[0]
+                    step_values.append(sr0.low + step * (sr0.high - sr0.low) / (n_steps - 1))
+                else:
+                    step_values.append(step / (n_steps - 1))
+
+            results[scan.name] = (np.asarray(step_values), step_results)
+
+        return results
 
     # ------------------------------------------------------------------
     # Private helpers

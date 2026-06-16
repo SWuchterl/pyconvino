@@ -427,6 +427,43 @@ def write_result(result: CombinationResult, prefix: str = "convino") -> None:
 
 
 # ---------------------------------------------------------------------------
+# Correlation scan output (Combiner.scan_correlations / CLI --scan)
+# ---------------------------------------------------------------------------
+
+ScanResults = dict  # {group_name: (scan_values: np.ndarray, [CombinationResult, ...])}
+
+
+def format_scan_result(scan_results: "ScanResults") -> str:
+    """
+    Concatenate `format_result()` for every step of every scan group, with a
+    `===` header identifying the group/step/value before each block. The C++
+    reference's `scan_result.txt` concatenates raw `printFullInfo` blocks with
+    no such header (relying on the console log printed alongside it for
+    context); since there is no byte-fidelity target for this new file, the
+    header is added for readability.
+    """
+    buf = io.StringIO()
+    for name, (values, steps) in scan_results.items():
+        for i, (val, res) in enumerate(zip(values, steps)):
+            buf.write(
+                f"=== scan group '{name}': step {i + 1}/{len(steps)}, "
+                f"correlation={float(val):g} ===\n"
+            )
+            buf.write(format_result(res))
+            buf.write("\n")
+    return buf.getvalue()
+
+
+def write_scan_result(scan_results: "ScanResults", prefix: str = "convino") -> Path:
+    """Write the scan text log to <prefix>_scan_result.txt."""
+    text = format_scan_result(scan_results)
+    out_path = Path(f"{prefix}_scan_result.txt")
+    out_path.write_text(text, encoding="utf-8")
+    print(f"Scan result written to {out_path}")
+    return out_path
+
+
+# ---------------------------------------------------------------------------
 # Machine-readable export (npz / json)
 # ---------------------------------------------------------------------------
 #
@@ -542,4 +579,40 @@ def export_json(result: CombinationResult, path) -> None:
     import json
 
     data = _to_jsonable(to_dict(result))
+    Path(path).write_text(json.dumps(data, indent=2), encoding="utf-8")
+
+
+def scan_results_to_dict(scan_results: "ScanResults") -> dict:
+    """
+    Flatten `Combiner.scan_correlations()`'s output into a `to_dict()`-shaped
+    nested dict: `{group_name: {"scan_values": [...], "steps": [to_dict(...),
+    ...]}}`. The pythonic replacement for the C++ reference's ROOT
+    TGraphAsymmErrors output (`-p` plots) — `scan_values` plus each step's
+    `combined_values`/`combined_err_up`/`combined_err_down`/`chi2_min` is the
+    same data the original plotted, usable directly with matplotlib.
+    """
+    return {
+        name: {
+            "scan_values": np.asarray(values),
+            "steps": [to_dict(res) for res in steps],
+        }
+        for name, (values, steps) in scan_results.items()
+    }
+
+
+def export_scan_npz(scan_results: "ScanResults", path) -> None:
+    """Export scan results to a compressed .npz (flat keys, '__'-joined)."""
+    flat: dict[str, np.ndarray] = {}
+    for name, (values, steps) in scan_results.items():
+        flat[f"{name}__scan_values"] = np.asarray(values)
+        for i, res in enumerate(steps):
+            flat.update(_flatten_for_npz(to_dict(res), prefix=f"{name}__step{i}__"))
+    np.savez_compressed(path, **flat)
+
+
+def export_scan_json(scan_results: "ScanResults", path) -> None:
+    """Export scan results to a JSON file (nested, ndarrays as lists)."""
+    import json
+
+    data = _to_jsonable(scan_results_to_dict(scan_results))
     Path(path).write_text(json.dumps(data, indent=2), encoding="utf-8")
