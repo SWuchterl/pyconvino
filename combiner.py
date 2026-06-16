@@ -36,6 +36,7 @@ import jax
 import jax.numpy as jnp
 from scipy.optimize import minimize, brentq
 from scipy.linalg import inv as scipy_inv
+from scipy.stats import chi2 as _chi2_dist
 
 jax.config.update("jax_enable_x64", True)
 
@@ -55,6 +56,24 @@ class CombinationResult:
     # Minimizer outcome
     chi2_min: float = 0.0
     converged: bool = False
+
+    # Goodness of fit. ndf = (total number of individual input measurements,
+    # i.e. sum of len(x_meas) over all measurement setups) - nest (the number
+    # of fitted combined-observable parameters). Every nuisance parameter
+    # (nsys of them) is excluded from both sides of that count: each is a
+    # fitted parameter, but also carries at least a unit-Gaussian prior (the
+    # global correlation prior, optionally sharpened by a per-measurement
+    # Hessian block), so by the standard Wilks'-theorem treatment of
+    # Gaussian-constrained profiled nuisances it contributes net zero degrees
+    # of freedom — the same convention used for published ATLAS/CMS
+    # combination chi2/ndf figures. (The original C++ Convino never computed
+    # or printed ndf/p-value at all — only chi2min_ — so there is no fidelity
+    # target to match here.) NaN when ndf <= 0 (e.g. a single, non-redundant
+    # measurement with no systematics has nothing left to test for
+    # consistency).
+    ndf: int = 0
+    chi2_per_ndf: float = float("nan")
+    p_value: float = float("nan")
 
     # Combined observables
     combined_names: list[str] = field(default_factory=list)
@@ -307,9 +326,23 @@ class Combiner:
             impact_per_systematic = {}
             cov_per_systematic = {}
 
+        # 14. Goodness of fit (ndf, chi2/ndf, p-value). See the ndf convention
+        # documented on CombinationResult above.
+        n_meas = sum(len(s.x_meas) for s in setups)
+        ndf = n_meas - nest
+        if ndf > 0:
+            chi2_per_ndf = float(chi2_min) / ndf
+            p_value = float(_chi2_dist.sf(max(float(chi2_min), 0.0), ndf))
+        else:
+            chi2_per_ndf = float("nan")
+            p_value = float("nan")
+
         return CombinationResult(
             chi2_min=float(chi2_min),
             converged=converged,
+            ndf=ndf,
+            chi2_per_ndf=chi2_per_ndf,
+            p_value=p_value,
             combined_names=combined_names,
             combined_values=combined_vals,
             combined_err_up=combined_err_up,

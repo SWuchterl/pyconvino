@@ -319,6 +319,16 @@ def format_result(result: CombinationResult) -> str:
                             result.impact_groups)
         buf.write("[end impact table]\n\n")
 
+    # 6b. Goodness of fit. New section, no C++ equivalent: the reference
+    # combinationResult only ever stores/prints chi2min_, never an ndf or
+    # p-value (grepped combinationResult.cpp/combiner.cpp, no match) — see
+    # the ndf convention documented on CombinationResult in combiner.py.
+    buf.write("\n[goodness of fit]\n")
+    buf.write(f"ndf: {result.ndf:d}\n")
+    buf.write(f"chi2/ndf: {result.chi2_per_ndf:g}\n")
+    buf.write(f"p-value: {result.p_value:g}\n")
+    buf.write("[end goodness of fit]\n")
+
     # 7. Full correlation matrix
     _section(buf, "full correlation matrix", all_names, result.corr_full)
 
@@ -435,6 +445,9 @@ def to_dict(result: CombinationResult) -> dict:
     `cov_full`/`corr_full` — the marginal covariance over all profiled
     nuisance parameters, i.e. exactly what a downstream chi2 fit needs.
 
+    `ndf`/`chi2_per_ndf`/`p_value` are the goodness-of-fit figures; see the
+    ndf convention documented on `CombinationResult` in combiner.py.
+
     `stat_only_covariance` is the same covariance with every systematic
     frozen (pure statistical/measurement uncertainty); `total_syst_covariance`
     is `combined_covariance - stat_only_covariance`. Do not sum
@@ -461,6 +474,9 @@ def to_dict(result: CombinationResult) -> dict:
         "combined_covariance": combined_covariance,
         "combined_correlation": combined_correlation,
         "chi2_min": float(result.chi2_min),
+        "ndf": int(result.ndf),
+        "chi2_per_ndf": float(result.chi2_per_ndf),
+        "p_value": float(result.p_value),
         "converged": bool(result.converged),
         "sys_names": list(result.sys_names),
         "pulls": np.asarray(result.pulls),

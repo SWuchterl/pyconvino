@@ -72,6 +72,9 @@ def result_to_arrays(result) -> dict[str, np.ndarray]:
     """
     out: dict[str, np.ndarray] = {
         "chi2_min": np.asarray(result.chi2_min, dtype=float),
+        "ndf": np.asarray(result.ndf, dtype=int),
+        "chi2_per_ndf": np.asarray(result.chi2_per_ndf, dtype=float),
+        "p_value": np.asarray(result.p_value, dtype=float),
         "converged": np.asarray(result.converged, dtype=bool),
         "combined_values": np.asarray(result.combined_values, dtype=float),
         "combined_err_up": np.asarray(result.combined_err_up, dtype=float),
@@ -122,6 +125,8 @@ def make_fixture_result():
     the input for the byte-level formatter golden, which guards result.py
     formatting independently of any optimiser noise.
     """
+    from scipy.stats import chi2 as chi2_dist
+
     from convino_jax import CombinationResult
 
     sys_names = ["sysA", "sysB", "sysC"]
@@ -155,8 +160,12 @@ def make_fixture_result():
     impact_cov = np.array([[5.1**2, 0.3 * 5.1 * 8.2],
                            [0.3 * 5.1 * 8.2, 8.2**2]])
 
+    fixture_ndf = 7
     return CombinationResult(
         chi2_min=1.2345,
+        ndf=fixture_ndf,
+        chi2_per_ndf=1.2345 / fixture_ndf,
+        p_value=float(chi2_dist.sf(1.2345, fixture_ndf)),
         converged=True,
         combined_names=comb_names,
         combined_values=combined_values,

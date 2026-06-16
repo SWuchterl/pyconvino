@@ -63,7 +63,10 @@ class RegressionTest(unittest.TestCase):
                                     f"{name}/{key}: changed")
                 else:
                     tol = _TOL.get(key, _DEFAULT_TOL)
-                    if not np.allclose(got, exp, **tol):
+                    # equal_nan=True: ndf<=0 setups legitimately produce NaN
+                    # chi2_per_ndf/p_value (no degrees of freedom to test),
+                    # and that NaN-ness is itself the thing being regressed.
+                    if not np.allclose(got, exp, equal_nan=True, **tol):
                         diff = np.abs(got - exp)
                         i = int(np.nanargmax(diff))
                         self.fail(

@@ -34,6 +34,12 @@ obs2: 611.9 +30.33 -30.5
 groupX |  4.74 |  1.34 | 
 [end impact table]
 
+
+[goodness of fit]
+ndf: 7
+chi2/ndf: 0.176357
+p-value: 0.990111
+[end goodness of fit]
 [full correlation matrix]
 sysA  1.0000000  0.2500000  0.0500000  0.4000000 -0.1000000
 sysB  0.2500000  1.0000000 -0.1499999  0.2000000  0.2999999
