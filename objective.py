@@ -50,6 +50,34 @@ def make_chi2(
     # Convert to JAX arrays once
     meas_jax = []
     for ms in setups:
+        # Only "absolute" and "relative" systematic responses are implemented
+        # below (rel_mask selects "relative"; everything else is treated as
+        # additive/absolute). "lognormal" is a recognised tag in the file
+        # format (parser.py), but the original C++ Convino never finished
+        # this model either (measurement::setParameterType throws
+        # "log normal not fully supported yet", and the fit-function
+        # evaluation has it explicitly disabled with a "switched off for
+        # now"/"TBI" comment) — there is no validated reference behaviour to
+        # port. Rather than silently mis-modelling a user's "lognormal" tag
+        # as "absolute" (the previous, undetected fallthrough), fail loudly
+        # so the user knows the tag is unsupported instead of getting a
+        # quietly wrong statistical model.
+        bad_sys_names = sorted({
+            name for name, t in zip(ms.sys_names, ms.sys_types)
+            if t not in ("absolute", "relative")
+        })
+        if bad_sys_names:
+            unsupported_types = sorted({
+                t for t in ms.sys_types if t not in ("absolute", "relative")
+            })
+            raise NotImplementedError(
+                f"Systematic(s) {bad_sys_names} use unsupported type(s) "
+                f"{unsupported_types}. Only 'absolute' and 'relative' "
+                "systematic models are implemented; 'lognormal' is parsed "
+                "from input files but has no implemented statistical model "
+                "(it was never completed in the original C++ Convino "
+                "either, which throws on it too) and must not be used."
+            )
         meas_jax.append({
             "x_meas":   jnp.array(ms.x_meas),
             "LM":       jnp.array(ms.LM),

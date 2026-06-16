@@ -702,11 +702,27 @@ def _nearest_positive_definite(A: np.ndarray) -> np.ndarray:
     """
     Return the nearest positive-definite matrix to A.
     Negative eigenvalues are reflected to a small positive epsilon.
+
+    Warns (once per call) when this actually changes the matrix, i.e. when at
+    least one eigenvalue was negative beyond floating-point noise — not when
+    every eigenvalue was already at or above the epsilon floor. A user whose
+    prior correlation matrix was not positive-definite should be told that it
+    got silently regularised; a matrix that was already fine (e.g. identity)
+    should not generate noise on every run.
     """
     if A.size == 0:
         return A  # no systematics in the prior (e.g. stat-only combination)
     A = (A + A.T) / 2.0
     eigvals, eigvecs = np.linalg.eigh(A)
     eps = 1e-10 * max(1.0, np.max(np.abs(eigvals)))
+    # Use a small negative tolerance so genuine floating-point noise around 0
+    # (e.g. eigvals == -1e-16 for an already-PD matrix) does not trigger the
+    # warning; only eigenvalues meaningfully below the epsilon floor count.
+    if np.any(eigvals < -eps):
+        warnings.warn(
+            "Prior correlation matrix was not positive-definite "
+            "(had negative eigenvalues); it has been regularized by "
+            "reflecting negative eigenvalues to a small positive epsilon."
+        )
     eigvals_clipped = np.maximum(eigvals, eps)
     return eigvecs @ np.diag(eigvals_clipped) @ eigvecs.T
