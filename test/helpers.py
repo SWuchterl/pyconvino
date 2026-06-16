@@ -90,6 +90,21 @@ def result_to_arrays(result) -> dict[str, np.ndarray]:
         out["impact_labels"] = np.asarray(labels)
         out["impact_up"] = up.astype(float)
         out["impact_down"] = down.astype(float)
+
+    # Stat/syst split + per-individual-systematic breakdown (the export-API
+    # addition, see docs/improvement_plan.md Q4/Q4b). Guard the new fields
+    # with the same golden-regression net as everything else.
+    out["stat_only_covariance"] = np.asarray(result.stat_only_covariance, dtype=float)
+    out["total_syst_impact_up"] = np.asarray(result.total_syst_impact_up, dtype=float)
+    out["total_syst_impact_down"] = np.asarray(result.total_syst_impact_down, dtype=float)
+
+    sys_labels = sorted(result.impact_per_systematic.keys())
+    if sys_labels:
+        sys_up = np.stack([result.impact_per_systematic[l][0] for l in sys_labels])
+        sys_down = np.stack([result.impact_per_systematic[l][1] for l in sys_labels])
+        out["impact_per_sys_labels"] = np.asarray(sys_labels)
+        out["impact_per_sys_up"] = sys_up.astype(float)
+        out["impact_per_sys_down"] = sys_down.astype(float)
     return out
 
 
