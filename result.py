@@ -341,6 +341,11 @@ def format_result(result: CombinationResult) -> str:
     buf.write("\n[end simple impacts]\n")
 
     # 11. Merged impacts again (if groups present)
+    # Intentionally a superset of the C++ reference: that implementation never
+    # populates impacttable_ for a printFullInfo run on this setup, so its output
+    # omits sections 11/12 entirely. We print them deliberately (decided to keep,
+    # not a fidelity bug) since the per-group covariance has no C++ equivalent at
+    # all and is useful on its own.
     if result.impact_groups:
         buf.write("\n[merged impacts]\n\n")
         _print_impact_table(buf, comb_names, result.combined_values,
