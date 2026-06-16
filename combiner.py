@@ -9,9 +9,16 @@ Steps performed:
       pars[nsys:]  = combined observable values (x_comb), one per combined bin
 4. Build the global prior inverse-covariance matrix from user correlations.
 5. Build and JIT-compile the JAX chi2.
-6. Two-pass minimization with scipy L-BFGS-B:
-      pass 1: loose tolerance (fast, gets near the minimum)
-      pass 2: tight tolerance (precision fit)
+6. Minimization:
+      - Quadratic fast path: when the chi2 is an exact quadratic form in
+        `pars` (symmetric systematic responses, no "relative" systematics,
+        and Pearson scaling off), its Hessian is constant and the minimum is
+        reachable from any starting point in one linear solve.
+      - General path (any "relative" systematic, or Pearson scaling on):
+        two-pass scipy L-BFGS-B (pass 1: loose tolerance to get near the
+        minimum; pass 2: tight tolerance for a precision fit), followed by a
+        single Newton-correction step using the exact Hessian for extra
+        precision.
 7. Extract asymmetric errors via profile likelihood (MINOS equivalent).
 8. Compute post-fit covariance from the Hessian of chi2 at the minimum.
 9. Compute uncertainty impacts by re-fitting with systematic groups frozen.
@@ -153,19 +160,50 @@ class Combiner:
 
         # 4. Build chi2
         chi2_fn = make_chi2(setups, inv_C, nsys, nest, self.use_pearson)
-        grad_fn = jax.jit(jax.grad(chi2_fn))
+        value_and_grad_fn = jax.jit(jax.value_and_grad(chi2_fn))
         hess_fn = jax.jit(jax.hessian(chi2_fn))
         # Eager gradient (constructed once) for the profile/impact refits. The
-        # jitted grad_fn is NOT reused there: jit reassociates float ops at the
-        # ~1e-14 level, which the impact quadrature sqrt(err_full^2 - err_frozen^2)
-        # amplifies into the printed digits. The main fit uses the jitted grad_fn.
+        # jitted value_and_grad_fn is NOT reused there: jit reassociates float
+        # ops at the ~1e-14 level, which the impact quadrature
+        # sqrt(err_full^2 - err_frozen^2) amplifies into the printed digits.
+        # The main fit uses the jitted value_and_grad_fn (fused fun/jac, one
+        # forward+backward dispatch per evaluation point instead of two).
         grad_eager = jax.grad(chi2_fn)
+
+        # responses_symmetric: every systematic response is symmetric
+        # (Lk_up == -Lk_down, no kink at lambda=0). Computed here (rather than
+        # after _minimize, as in earlier versions) because it gates which
+        # minimizer strategy to use, in addition to its other use below (MINOS
+        # vs. HESSE errors).
+        responses_symmetric = all(
+            np.allclose(s.Lk_up, -s.Lk_down, atol=1e-9, rtol=1e-6)
+            for s in setups
+        )
+        # No "relative" systematic anywhere: relative systematics are
+        # multiplicative on x_comb (see the rel_factor branch in
+        # objective._x_shifted), which is nonlinear in pars even when
+        # symmetric. ("lognormal" is already rejected earlier in
+        # make_chi2/setup_measurement, so only "absolute"/"relative" remain.)
+        all_absolute = all(
+            t == "absolute" for s in setups for t in s.sys_types
+        )
+        # Whenever the chi2 is an exact quadratic form in pars (symmetric
+        # responses, no relative systematics, and not Pearson-rescaled — see
+        # the use_pearson branch in objective.chi2, which makes LM_eff depend
+        # nonlinearly on x_sh), its Hessian is constant and the gradient is
+        # exactly linear: grad(p) = H @ (p - p_min) for ANY p. The true
+        # minimum is then reachable from any starting point in one linear
+        # solve, with no iterative optimizer needed at all.
+        quadratic_fast_path = responses_symmetric and all_absolute and not self.use_pearson
 
         # 5. Initial parameter vector
         x0 = self._initial_params(setups, nsys, nest)
 
-        # 6. Two-pass minimization
-        pars_best, chi2_min, converged = self._minimize(chi2_fn, grad_fn, x0)
+        # 6. Minimization: exact one-step solve for the quadratic case, or the
+        # robust two-pass L-BFGS-B (with a Newton polish) otherwise.
+        pars_best, chi2_min, converged = self._minimize(
+            value_and_grad_fn, x0, hess_fn=hess_fn, quadratic_fast_path=quadratic_fast_path
+        )
 
         # 7. Post-fit Hessian → covariance
         #
@@ -204,10 +242,8 @@ class Combiner:
         combined_vals = np.array(pars_best[nsys:])
         hesse_errs = np.sqrt(np.maximum(np.diag(cov_fit)[nsys:], 0.0))
 
-        responses_symmetric = all(
-            np.allclose(s.Lk_up, -s.Lk_down, atol=1e-9, rtol=1e-6)
-            for s in setups
-        )
+        # responses_symmetric was already computed above (before _minimize),
+        # since it also gates the quadratic fast path.
 
         combined_err_up = hesse_errs.copy()
         combined_err_down = hesse_errs.copy()
@@ -421,26 +457,73 @@ class Combiner:
 
         return x0
 
-    def _minimize(self, chi2_fn, grad_fn, x0: np.ndarray):
-        """Two-pass L-BFGS-B minimization."""
-        def _scipy_grad(pars):
-            return np.array(grad_fn(jnp.array(pars, dtype=jnp.float64)))
+    def _minimize(self, value_and_grad_fn, x0: np.ndarray, hess_fn=None,
+                  quadratic_fast_path: bool = False):
+        """
+        Find the chi2 minimum.
+
+        `value_and_grad_fn` is a single jitted jax.value_and_grad callable, so
+        each evaluation point triggers exactly one forward+backward XLA
+        dispatch (instead of separately dispatching a jitted `fun` and a
+        jitted `jac`, which would recompute the forward pass twice per point
+        since reverse-mode autodiff already performs it as part of the
+        gradient). Wired to scipy via the `jac=True` convention: `fun` returns
+        a `(value, gradient)` tuple.
+
+        Fast path (quadratic_fast_path=True): the chi2 is an exact quadratic
+        form in `pars` with a parameter-independent Hessian H (this holds
+        whenever every systematic response is symmetric, no systematic is
+        "relative", and Pearson rescaling is off — see the gating logic in
+        combine()). For such a chi2 the gradient is exactly linear,
+        grad(p) = H @ (p - p_min), so the true minimum is reachable from ANY
+        starting point in one linear solve:
+
+            p_min = p0 - solve(H, grad(p0))
+
+        No iterative optimizer is needed, and the result is exact (up to
+        floating point), so `converged` is unconditionally True.
+
+        General path (otherwise): the existing robust two-pass L-BFGS-B,
+        followed by a single Newton-correction step using the exact Hessian
+        evaluated at the L-BFGS-B solution. L-BFGS-B already lands inside the
+        basin where Newton's quadratic convergence applies, so this step is
+        safe and cheap; it just buys back precision (closer to machine
+        epsilon) on top of the validated L-BFGS-B result, which is otherwise
+        left untouched.
+        """
+        if quadratic_fast_path:
+            assert hess_fn is not None, "quadratic_fast_path requires hess_fn"
+            p0 = jnp.array(x0, dtype=jnp.float64)
+            H = np.array(hess_fn(p0))
+            _, g0 = value_and_grad_fn(p0)
+            g0 = np.array(g0)
+            step = np.linalg.solve(H, g0)
+            p_min = np.array(x0, dtype=np.float64) - step
+            p_min_j = jnp.array(p_min, dtype=jnp.float64)
+            chi2_min, _ = value_and_grad_fn(p_min_j)
+            # Exact linear solve, not an iterative outcome that can fail to
+            # converge.
+            return p_min_j, float(chi2_min), True
+
+        def _fun_and_grad(pars):
+            v, g = value_and_grad_fn(jnp.array(pars, dtype=jnp.float64))
+            return float(v), np.array(g)
 
         # Pass 1: loose tolerance
         res1 = minimize(
-            lambda p: float(chi2_fn(jnp.array(p, dtype=jnp.float64))),
+            _fun_and_grad,
             x0,
             method="L-BFGS-B",
-            jac=_scipy_grad,
+            jac=True,
             options={"maxiter": 2000, "ftol": 1e-9, "gtol": 1e-5},
         )
 
         # Pass 2: precision
         res2 = minimize(
-            lambda p: float(chi2_fn(jnp.array(p, dtype=jnp.float64))),
+            _fun_and_grad,
             res1.x,
             method="L-BFGS-B",
-            jac=_scipy_grad,
+            jac=True,
             options={"maxiter": 5000, "ftol": 1e-15, "gtol": 1e-9},
         )
 
@@ -450,11 +533,44 @@ class Combiner:
         # (res2.fun < res1.fun + 1e-6) was meaningless: pass 2 starts from
         # pass 1's point, so it is true for essentially every fit, converged or
         # not.
-        gnorm = float(np.linalg.norm(
-            np.array(grad_fn(jnp.array(res2.x, dtype=jnp.float64)))
-        ))
+        x_best = res2.x
+        fun_best = res2.fun
+        _, g_final = value_and_grad_fn(jnp.array(x_best, dtype=jnp.float64))
+        gnorm = float(np.linalg.norm(np.array(g_final)))
         converged = bool(res2.success or gnorm < 1e-4)
-        return jnp.array(res2.x, dtype=jnp.float64), res2.fun, converged
+
+        # Newton-correction polish using the exact Hessian, evaluated once at
+        # the L-BFGS-B solution. L-BFGS-B already lands inside the basin where
+        # Newton's quadratic convergence applies, so this is a cheap precision
+        # refinement layered on top of the (unmodified) robust optimizer
+        # above, not a replacement for it. Guarded so it can only improve
+        # things: if the Hessian solve fails, or the resulting point is not
+        # at least as good (lower or equal chi2 and gradient norm), fall back
+        # to the L-BFGS-B result unchanged.
+        if hess_fn is not None:
+            try:
+                p_best = jnp.array(x_best, dtype=jnp.float64)
+                H_best = np.array(hess_fn(p_best))
+                g_best = np.array(g_final)
+                step = np.linalg.solve(H_best, g_best)
+                p_polished = np.array(x_best, dtype=np.float64) - step
+                p_polished_j = jnp.array(p_polished, dtype=jnp.float64)
+                chi2_polished, g_polished = value_and_grad_fn(p_polished_j)
+                chi2_polished = float(chi2_polished)
+                if np.all(np.isfinite(p_polished)) and chi2_polished <= fun_best:
+                    gnorm_polished = float(np.linalg.norm(np.array(g_polished)))
+                    # Only accept if it's at least as good in gradient norm
+                    # too (chi2 at a quadratic-ish minimum can be flat enough
+                    # that a tiny chi2 improvement hides a worse gradient).
+                    if gnorm_polished <= gnorm:
+                        x_best = p_polished
+                        fun_best = chi2_polished
+                        gnorm = gnorm_polished
+                        converged = bool(converged or gnorm < 1e-4)
+            except np.linalg.LinAlgError:
+                pass  # keep the L-BFGS-B result unchanged
+
+        return jnp.array(x_best, dtype=jnp.float64), fun_best, converged
 
     def _minimize_frozen(self, chi2_fn, grad_fn, p_init, frozen_idx, frozen_vals, options):
         """
