@@ -1,0 +1,79 @@
+Configuration file for atlas/CMS tt+1jet "rhoS" observable
+
+Rebinned last two bins of ATLAS13TeV result
+
+[global]
+	isDifferential = false
+	normalise = false
+[end global]
+
+[inputs]
+
+    nFiles = 1
+    file0 = ATLAS13TeV_ConvinoInput_withSystsSmoothed_ChangeSign.txt
+
+[end inputs]
+	
+[observables]	
+
+	# This block defines which estimates should be combined.
+	# The combined name of the observable can be chosen freely.
+        ATLAS_13TeV_201518_dil_abs_rho_0p0_0p25 = ATLAS_13TeV_201518_dil_abs_rho_0p0_0p25
+        ATLAS_13TeV_201518_dil_abs_rho_0p25_0p4 = ATLAS_13TeV_201518_dil_abs_rho_0p25_0p4
+        ATLAS_13TeV_201518_dil_abs_rho_0p4_0p5 = ATLAS_13TeV_201518_dil_abs_rho_0p4_0p5
+        ATLAS_13TeV_201518_dil_abs_rho_0p5_0p6 = ATLAS_13TeV_201518_dil_abs_rho_0p5_0p6
+        ATLAS_13TeV_201518_dil_abs_rho_0p6_0p7 = ATLAS_13TeV_201518_dil_abs_rho_0p6_0p7
+        ATLAS_13TeV_201518_dil_abs_rho_0p7_0p8 = ATLAS_13TeV_201518_dil_abs_rho_0p7_0p8
+        ATLAS_13TeV_201518_dil_abs_rho_0p8_1p0 = ATLAS_13TeV_201518_dil_abs_rho_0p8_1p0
+
+[end observables]
+	
+	
+# correlations syntax: 
+# parameter = (<nominal correlation> & <scan from> : <to>) <other parameter> + other correlations
+# entries for scan are optional. If not used, syntax: "(<nominal correlation>)"
+[correlations]	
+
+	# The syntax for correlation assumptions defined here is as follows:
+	# parameter = (<nominal correlation> & <scan from> : <to>) <other parameter> + <other correlations with same syntax>
+	# Example: sys_b1 has a nominal correlation of 0.2 to sys_c2
+	#          this correlation should be scanned from -0.1 to 0.4
+	#sys_a1 =  (0 & -0.9 : 0.9) sys_b2
+	# or without a scan:
+	#    sys_b1 = (0.2) sys_c2
+	# more than one correlation simultaneously:
+	#sys_a1 = (0.2 & -0.9 : 0.9) sys_c2 + (0.2 & 0.4 : -0.4) sys_c1 
+	
+	# correlations can also be added from a different file
+	# please not that this line has to start with # ! FILE (without the blanks)
+	# the file needs to be in the same directory as this config file
+	# # # ! FILE  =  extra_correlations.txt
+[end correlations]
+
+#[uncertainty impacts]
+    # This block defines individual uncertainties or groups of uncertainties that should be evaluated 
+    # with respect to their impact on the final combination results.
+    # The procedure applied here is to fix the values under question and evaluate the difference in  
+    # quadrature w.r.t. the uncertainty on the combined results.
+
+    # The resulting table of uncertainties does not represent independent uncertainty groups
+    # and serves as illustration, only.    
+
+    #ATLAS_ColorReconnection = ATLAS_modelling_ttbar_ColorReconnection
+    #ATLAS_ShowerHadronization = ATLAS_modelling_ttbar_ShowerHadronization
+    #ATLAS_UnderlyingEvent = ATLAS_modelling_ttbar_UnderlyingEvent
+    #ATLAS_Radiation = ATLAS_modelling_ttbar_Radiation 
+    #ATLAS_MatrixElement = ATLAS_modelling_ttbar_MatrixElement 
+    #ATLAS_modelling_ttbar = ATLAS_modelling_ttbar_ColorReconnection + ATLAS_modelling_ttbar_ShowerHadronization + ATLAS_modelling_ttbar_UnderlyingEvent + ATLAS_modelling_ttbar_Radiation + ATLAS_modelling_ttbar_MatrixElement
+   #    ATLAS_modelling_ttbar =	 
+   #    ATLAS_scale_j =	  
+#[end uncertainty impacts]
+
+
+
+
+
+
+
+
+

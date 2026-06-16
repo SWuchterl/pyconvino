@@ -1,0 +1,186 @@
+#------------------------------------------------------------------------------
+#------------------------------------------------------------------------------
+#------------------------------------------------------------------------------
+# ATLAS 8 TeV - ATLAS 13 TeV correlations
+#------------------------------------------------------------------------------
+#------------------------------------------------------------------------------
+#------------------------------------------------------------------------------
+
+ATLAS_8TeV_norm_zjets = (0.50)  ATLAS_13TeV_norm_zjets
+ATLAS_8TeV_norm_singletop = (0.50)  ATLAS_13TeV_norm_tW
+
+ATLAS_8TeV_eff_j_jvf = (0.75) ATLAS_13TeV_eff_j_jvt
+
+ATLAS_8TeV_scale_j_Model1 = (-0.75) ATLAS_13TeV_scale_j_NPModelling1
+ATLAS_8TeV_scale_j_Model2 = (0.75) ATLAS_13TeV_scale_j_NPModelling2
+ATLAS_8TeV_scale_j_Model3 = (0.75) ATLAS_13TeV_scale_j_NPModelling3
+ATLAS_8TeV_scale_j_Model4 = (0.75) ATLAS_13TeV_scale_j_NPModelling4
+
+ATLAS_8TeV_scale_j_Det1 = (0.75) ATLAS_13TeV_scale_j_NPDetector1
+ATLAS_8TeV_scale_j_Det2 = (0.75) ATLAS_13TeV_scale_j_NPDetector2
+
+ATLAS_8TeV_scale_j_Mix1 = (0.75) ATLAS_13TeV_scale_j_NPMixed1
+ATLAS_8TeV_scale_j_Mix2 = (0.75) ATLAS_13TeV_scale_j_NPMixed2
+ATLAS_8TeV_scale_j_Mix3 = (0.75) ATLAS_13TeV_scale_j_NPMixed3
+#ATLAS_8TeV_scale_j_Mix4 = (0.75) ATLAS_13TeV_scale_j_NPMixed4 #????? doesnt exist
+
+ATLAS_8TeV_scale_j_EtaIntercalibrationModel = (0.75) ATLAS_13TeV_scale_j_EtaIntercalibrationModelling
+ATLAS_8TeV_scale_j_PunchThrough = (0.75) ATLAS_13TeV_scale_j_PunchThroughMC16
+ATLAS_8TeV_scale_j_SinglePart = (0.75) ATLAS_13TeV_scale_j_SingleParticleHighPt
+ATLAS_8TeV_scale_j_PileupOffsetMu = (0.75) ATLAS_13TeV_scale_j_PileupOffsetMu
+ATLAS_8TeV_scale_j_PileupOffsetNPV = (0.75) ATLAS_13TeV_scale_j_PileupOffsetNPV
+ATLAS_8TeV_scale_j_PileupPt = (0.75) ATLAS_13TeV_scale_j_PileupPtTerm
+ATLAS_8TeV_scale_j_PileupRho = (0.75) ATLAS_13TeV_scale_j_PileupRhoTopology
+
+# modeling
+ATLAS_8TeV_modelling_ttbar_ShowerHadronization = (0.50) ATLAS_13TeV_modelling_ttbar_Herwig
+ATLAS_8TeV_modelling_ttbar_UnderlyingEvent = (0.50) ATLAS_13TeV_modelling_ttbar_A14Var1Up
+ATLAS_8TeV_modelling_ttbar_ColorReconnection = (-0.10) ATLAS_13TeV_modelling_ttbar_ATLCR2
+
+ATLAS_8TeV_modelling_ttbar_Radiation = (0.1) ATLAS_13TeV_modelling_ttbar_isrmuRfac1p0fsrmuRfac0p5
+ATLAS_8TeV_modelling_ttbar_Radiation = (0.3) ATLAS_13TeV_modelling_ttbar_hdamp3mt
+ATLAS_8TeV_modelling_ttbar_Radiation = (0.25) ATLAS_13TeV_modelling_ttbar_Var3cUp
+
+ATLAS_8TeV_modelling_ttbar_MatrixElement = (0.25) ATLAS_13TeV_modelling_ttbar_TtbarNNLOReweight
+ATLAS_8TeV_modelling_ttbar_MatrixElement = (0.25) ATLAS_13TeV_modelling_ttbar_muR1p0muF2p0
+ATLAS_8TeV_modelling_ttbar_MatrixElement = (0.25) ATLAS_13TeV_modelling_ttbar_muR2p0muF1p0
+ATLAS_8TeV_modelling_ttbar_MatrixElement = (0.25) ATLAS_13TeV_modelling_ttbar_PtHard1
+
+
+#-------------------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------------
+# ATLAS 8 TeV - CMS 13 TeV correlations
+#------------------------------------------------------------------------------
+#------------------------------------------------------------------------------
+#------------------------------------------------------------------------------
+
+# Obvious ones from the JES mapping
+ATLAS_8TeV_scale_b = (0.75)  CMS_scale_j_flavorBottom
+ATLAS_8TeV_scale_j_flavorresponse = (0.75)  CMS_scale_j_flavorGluon
+ATLAS_8TeV_scale_j_EtaIntercalibrationModel = (0.75)  CMS_scale_j_relativeFSR
+CMS_scale_j_absoluteMPFBias = (0.25)  ATLAS_8TeV_scale_j_Mix1
+CMS_scale_j_absoluteMPFBias = (0.25)  ATLAS_8TeV_scale_j_Mix2
+CMS_scale_j_absoluteMPFBias = (0.25)  ATLAS_8TeV_scale_j_Mix3
+CMS_scale_j_absoluteMPFBias = (0.25)  ATLAS_8TeV_scale_j_Mix4
+CMS_scale_j_absoluteMPFBias = (0.25)  ATLAS_8TeV_scale_j_Model1
+CMS_scale_j_absoluteMPFBias = (0.25)  ATLAS_8TeV_scale_j_Model2
+CMS_scale_j_absoluteMPFBias = (0.25)  ATLAS_8TeV_scale_j_Model3
+CMS_scale_j_absoluteMPFBias = (0.25)  ATLAS_8TeV_scale_j_Model4
+
+# Other ones taken from the Run 1 mass combination
+CMS_modelling_ttbar_bfrag = (0.25) ATLAS_8TeV_modelling_ttbar_ShowerHadronization
+CMS_modelling_ttbar_bfragPythiaDefault = (0.25) ATLAS_8TeV_modelling_ttbar_ShowerHadronization
+CMS_modelling_ttbar_bfragPeterson = (0.25) ATLAS_8TeV_modelling_ttbar_ShowerHadronization
+CMS_modelling_ttbar_erdOn = (0.25) ATLAS_8TeV_modelling_ttbar_ColorReconnection
+CMS_modelling_ttbar_tuneQCD  = (0.25) ATLAS_8TeV_modelling_ttbar_ColorReconnection
+CMS_modelling_ttbar_tuneGluon  = (0.25) ATLAS_8TeV_modelling_ttbar_ColorReconnection
+CMS_modelling_ttbar_hdamp = (0.5) ATLAS_8TeV_modelling_ttbar_Radiation
+CMS_modelling_ttbar_isr = (0.25) ATLAS_8TeV_modelling_ttbar_Radiation
+CMS_modelling_ttbar_fsr = (0.25) ATLAS_8TeV_modelling_ttbar_Radiation
+#CMS_pileup
+CMS_modelling_ttbar_tune = (0.50) ATLAS_8TeV_modelling_ttbar_UnderlyingEvent
+CMS_modelling_ttbar_muR = (0.25) ATLAS_8TeV_modelling_ttbar_Radiation 
+CMS_modelling_ttbar_muF = (0.25) ATLAS_8TeV_modelling_ttbar_Radiation 
+
+# background norms
+CMS_norm_zjets_1b = (0.0)  ATLAS_8TeV_norm_zjets
+CMS_norm_zjets_1j = (0.0)  ATLAS_8TeV_norm_zjets
+CMS_norm_zjets_2b = (0.0)  ATLAS_8TeV_norm_zjets
+CMS_norm_zjets_2j = (0.0)  ATLAS_8TeV_norm_zjets
+CMS_norm_zjets_3j = (0.0)  ATLAS_8TeV_norm_zjets
+CMS_norm_singletop = (0.0)  ATLAS_8TeV_norm_singletop
+
+# Start adding tt0jet correlations
+CMS_norm_tt0jet = (0.5) ATLAS_8TeV_modelling_ttbar_ColorReconnection
+CMS_norm_tt0jet = (0.00) ATLAS_8TeV_modelling_ttbar_MatrixElement
+CMS_norm_tt0jet = (0.5) ATLAS_8TeV_modelling_ttbar_Radiation
+CMS_norm_tt0jet = (0.00) ATLAS_8TeV_modelling_ttbar_ShowerHadronization
+CMS_norm_tt0jet = (0.00) ATLAS_8TeV_modelling_ttbar_UnderlyingEvent
+
+
+#------------------------------------------------------------------------------
+#------------------------------------------------------------------------------
+#------------------------------------------------------------------------------
+Other ones corrleating 13 TeV ATLAS and CMS uncertianties
+#------------------------------------------------------------------------------
+#------------------------------------------------------------------------------
+#------------------------------------------------------------------------------
+CMS_modelling_ttbar_bfrag = (0.25) ATLAS_13TeV_modelling_ttbar_Herwig
+CMS_modelling_ttbar_bfragPythiaDefault = (0.25) ATLAS_13TeV_modelling_ttbar_Herwig
+CMS_modelling_ttbar_bfragPeterson = (0.25) ATLAS_13TeV_modelling_ttbar_Herwig
+CMS_modelling_ttbar_erdOn  = (0.25) ATLAS_13TeV_modelling_ttbar_ATLCR2
+CMS_modelling_ttbar_tuneQCD  = (0.25) ATLAS_13TeV_modelling_ttbar_ATLCR2
+CMS_modelling_ttbar_tuneGluon  = (0.25) ATLAS_13TeV_modelling_ttbar_ATLCR2
+CMS_modelling_ttbar_hdamp = (0.50) ATLAS_13TeV_modelling_ttbar_hdamp3mt
+CMS_modelling_ttbar_fsr = (0.75) ATLAS_13TeV_modelling_ttbar_isrmuRfac1p0fsrmuRfac0p5
+CMS_modelling_ttbar_tune = (0.50) ATLAS_13TeV_modelling_ttbar_A14Var1Up
+CMS_modelling_ttbar_isr = (0.50) ATLAS_13TeV_modelling_ttbar_Var3cUp 
+CMS_modelling_ttbar_muR = (0.50) ATLAS_13TeV_modelling_ttbar_muR2p0muF1p0 
+CMS_modelling_ttbar_muF = (0.50) ATLAS_13TeV_modelling_ttbar_muR1p0muF2p0 
+
+# Obvious ones from the JES mapping - copied for 13 TeV ATLAS-CMS from 8 TeV
+#ATLAS_13TeV_scale_j_flavorresponse = (0.75)  CMS_scale_j_flavorGluon
+ATLAS_13TeV_scale_j_EtaIntercalibrationModelling = (0.75)  CMS_scale_j_relativeFSR
+CMS_scale_j_absoluteMPFBias = (0.25)  ATLAS_13TeV_scale_j_NPMixed1
+CMS_scale_j_absoluteMPFBias = (0.25)  ATLAS_13TeV_scale_j_NPMixed2
+CMS_scale_j_absoluteMPFBias = (0.25)  ATLAS_13TeV_scale_j_NPMixed3
+#CMS_scale_j_absoluteMPFBias = (0.25)  ATLAS_13TeV_scale_j_NPMixed4
+CMS_scale_j_absoluteMPFBias = (0.25)  ATLAS_13TeV_scale_j_NPModelling1
+CMS_scale_j_absoluteMPFBias = (0.25)  ATLAS_13TeV_scale_j_NPModelling2
+CMS_scale_j_absoluteMPFBias = (0.25)  ATLAS_13TeV_scale_j_NPModelling3
+CMS_scale_j_absoluteMPFBias = (0.25)  ATLAS_13TeV_scale_j_NPModelling4
+
+# background norms
+CMS_norm_zjets_1b = (0.0)  ATLAS_13TeV_norm_zjets
+CMS_norm_zjets_1j = (0.0)  ATLAS_13TeV_norm_zjets
+CMS_norm_zjets_2b = (0.0)  ATLAS_13TeV_norm_zjets
+CMS_norm_zjets_2j = (0.0)  ATLAS_13TeV_norm_zjets
+CMS_norm_zjets_3j = (0.0)  ATLAS_13TeV_norm_zjets
+CMS_norm_singletop = (0.0)  ATLAS_13TeV_norm_tW
+
+# Start adding tt0jet correlations
+CMS_norm_tt0jet = (0.00) ATLAS_13TeV_modelling_ttbar_PtHard1
+CMS_norm_tt0jet = (0.00) ATLAS_13TeV_modelling_ttbar_muR1p0muF2p0
+CMS_norm_tt0jet = (0.00) ATLAS_13TeV_modelling_ttbar_muR2p0muF1p0
+CMS_norm_tt0jet = (0.00) ATLAS_13TeV_modelling_ttbar_Herwig
+CMS_norm_tt0jet = (0.00) ATLAS_13TeV_modelling_ttbar_hdamp3mt
+CMS_norm_tt0jet = (0.00) ATLAS_13TeV_modelling_ttbar_TtbarNNLOReweight
+CMS_norm_tt0jet = (0.00) ATLAS_13TeV_modelling_ttbar_ATLCR2
+CMS_norm_tt0jet = (0.00) ATLAS_13TeV_modelling_ttbar_isrmuRfac1p0fsrmuRfac0p5
+CMS_norm_tt0jet = (0.00) ATLAS_13TeV_modelling_ttbar_Var3cUp
+CMS_norm_tt0jet = (0.00) ATLAS_13TeV_modelling_ttbar_A14Var1Up
+
+#random stuff to try?
+ATLAS_13TeV_modelling_ttbar_mTopMC = (0.5) CMS_modelling_ttbar_mass
+ATLAS_13TeV_modelling_singletop_DSvsDR = (0.25) CMS_modelling_singletop_muF
+ATLAS_13TeV_modelling_singletop_DSvsDR = (0.25) CMS_modelling_singletop_muR
+ATLAS_13TeV_modelling_singletop_DSvsDR = (0.25) CMS_modelling_singletop_isr
+ATLAS_13TeV_modelling_singletop_DSvsDR = (0.25) CMS_modelling_singletop_fsr
+
+
+
+
+
+#------------------------------------------------------------------------------
+#------------------------------------------------------------------------------
+#------------------------------------------------------------------------------
+Additional tests for CMS L3 review
+#------------------------------------------------------------------------------
+#------------------------------------------------------------------------------
+#------------------------------------------------------------------------------
+
+##########-------------------- b tagging uncertainties
+ATLAS_8TeV_eff_b_heavy_0 = (0.00) ATLAS_13TeV_eff_b_heavy_0
+ATLAS_8TeV_eff_b_heavy_1 = (0.00) ATLAS_13TeV_eff_b_heavy_1
+ATLAS_8TeV_eff_b_heavy_2 = (0.00) ATLAS_13TeV_eff_b_heavy_2
+ATLAS_8TeV_eff_b_heavy_3 = (0.00) ATLAS_13TeV_eff_b_heavy_3
+ATLAS_8TeV_eff_b_heavy_4 = (0.00) ATLAS_13TeV_eff_b_heavy_4
+ATLAS_8TeV_eff_b_heavy_5 = (0.00) ATLAS_13TeV_eff_b_heavy_5
+ATLAS_8TeV_eff_b_heavy_6 = (0.00) ATLAS_13TeV_eff_b_heavy_6
+ATLAS_8TeV_eff_b_heavy_7 = (0.00) ATLAS_13TeV_eff_b_heavy_7
+ATLAS_8TeV_eff_b_heavy_8 = (0.00) ATLAS_13TeV_eff_b_heavy_8
+ATLAS_8TeV_eff_b_light = (0.00) ATLAS_13TeV_eff_b_light_0
+ATLAS_8TeV_eff_b_light = (0.00) ATLAS_13TeV_eff_b_light_1
+ATLAS_8TeV_eff_b_light = (0.00) ATLAS_13TeV_eff_b_light_2
+ATLAS_8TeV_eff_b_light = (0.00) ATLAS_13TeV_eff_b_light_3

@@ -1,0 +1,51 @@
+
+#-------------------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------------
+# ATLAS 8 TeV - CMS 13 TeV correlations
+#------------------------------------------------------------------------------
+#------------------------------------------------------------------------------
+#------------------------------------------------------------------------------
+
+# Obvious ones from the JES mapping
+ATLAS_8TeV_scale_b = (0.75)  CMS_scale_j_flavorBottom
+ATLAS_8TeV_scale_j_flavorresponse = (0.75)  CMS_scale_j_flavorGluon
+ATLAS_8TeV_scale_j_EtaIntercalibrationModel = (0.75)  CMS_scale_j_relativeFSR
+CMS_scale_j_absoluteMPFBias = (0.25)  ATLAS_8TeV_scale_j_Mix1
+CMS_scale_j_absoluteMPFBias = (0.25)  ATLAS_8TeV_scale_j_Mix2
+CMS_scale_j_absoluteMPFBias = (0.25)  ATLAS_8TeV_scale_j_Mix3
+CMS_scale_j_absoluteMPFBias = (0.25)  ATLAS_8TeV_scale_j_Mix4
+CMS_scale_j_absoluteMPFBias = (0.25)  ATLAS_8TeV_scale_j_Model1
+CMS_scale_j_absoluteMPFBias = (0.25)  ATLAS_8TeV_scale_j_Model2
+CMS_scale_j_absoluteMPFBias = (0.25)  ATLAS_8TeV_scale_j_Model3
+CMS_scale_j_absoluteMPFBias = (0.25)  ATLAS_8TeV_scale_j_Model4
+
+# Other ones taken from the Run 1 mass combination
+CMS_modelling_ttbar_bfrag = (0.25) ATLAS_8TeV_modelling_ttbar_ShowerHadronization
+CMS_modelling_ttbar_bfragPythiaDefault = (0.25) ATLAS_8TeV_modelling_ttbar_ShowerHadronization
+CMS_modelling_ttbar_bfragPeterson = (0.25) ATLAS_8TeV_modelling_ttbar_ShowerHadronization
+CMS_modelling_ttbar_erdOn = (0.25) ATLAS_8TeV_modelling_ttbar_ColorReconnection
+CMS_modelling_ttbar_tuneQCD  = (0.25) ATLAS_8TeV_modelling_ttbar_ColorReconnection
+CMS_modelling_ttbar_tuneGluon  = (0.25) ATLAS_8TeV_modelling_ttbar_ColorReconnection
+CMS_modelling_ttbar_hdamp = (0.25) ATLAS_8TeV_modelling_ttbar_Radiation
+CMS_modelling_ttbar_isr = (0.25) ATLAS_8TeV_modelling_ttbar_Radiation
+CMS_modelling_ttbar_fsr = (0.25) ATLAS_8TeV_modelling_ttbar_Radiation
+#CMS_pileup
+CMS_modelling_ttbar_tune = (0.50) ATLAS_8TeV_modelling_ttbar_UnderlyingEvent
+CMS_modelling_ttbar_muR = (0.25) ATLAS_8TeV_modelling_ttbar_Radiation 
+CMS_modelling_ttbar_muF = (0.25) ATLAS_8TeV_modelling_ttbar_Radiation 
+
+# background norms
+CMS_norm_zjets_1b = (0.0)  ATLAS_8TeV_norm_zjets
+CMS_norm_zjets_1j = (0.0)  ATLAS_8TeV_norm_zjets
+CMS_norm_zjets_2b = (0.0)  ATLAS_8TeV_norm_zjets
+CMS_norm_zjets_2j = (0.0)  ATLAS_8TeV_norm_zjets
+CMS_norm_zjets_3j = (0.0)  ATLAS_8TeV_norm_zjets
+CMS_norm_singletop = (0.0)  ATLAS_8TeV_norm_singletop
+
+# Start adding tt0jet correlations
+CMS_norm_tt0jet = (0.00) ATLAS_8TeV_modelling_ttbar_ColorReconnection
+CMS_norm_tt0jet = (0.00) ATLAS_8TeV_modelling_ttbar_MatrixElement
+CMS_norm_tt0jet = (0.00) ATLAS_8TeV_modelling_ttbar_Radiation
+CMS_norm_tt0jet = (0.00) ATLAS_8TeV_modelling_ttbar_ShowerHadronization
+CMS_norm_tt0jet = (0.00) ATLAS_8TeV_modelling_ttbar_UnderlyingEvent

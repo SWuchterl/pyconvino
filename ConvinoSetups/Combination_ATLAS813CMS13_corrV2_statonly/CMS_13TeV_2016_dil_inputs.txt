@@ -1,0 +1,37 @@
+[hessian]
+
+[end hessian]
+
+[estimates]
+
+n_estimates = 4
+
+name_0 = CMS_13TeV_2016_dil_absDivBinWidth_rho_0p0_0p3
+value_0 = 107.546886
+
+name_1 = CMS_13TeV_2016_dil_absDivBinWidth_rho_0p3_0p45
+value_1 = 611.872484
+
+name_2 = CMS_13TeV_2016_dil_absDivBinWidth_rho_0p45_0p7
+value_2 = 672.142352
+
+name_3 = CMS_13TeV_2016_dil_absDivBinWidth_rho_0p7_1p0
+value_3 = 131.209872
+
+[end estimates]
+
+[not fitted]
+[end not fitted]
+
+
+[correlation matrix]
+CMS_13TeV_2016_dil_absDivBinWidth_rho_0p0_0p3   (1.6718) 1.0000  -0.4069   0.1239  -0.0341
+CMS_13TeV_2016_dil_absDivBinWidth_rho_0p3_0p45   (6.2141) -0.4069   1.0000  -0.4628   0.1578
+CMS_13TeV_2016_dil_absDivBinWidth_rho_0p45_0p7   (5.1791) 0.1239  -0.4628   1.0000  -0.5340
+CMS_13TeV_2016_dil_absDivBinWidth_rho_0p7_1p0   (3.1556) -0.0341   0.1578  -0.5340   1.0000
+
+[end correlation matrix]
+
+[systematics]
+
+[end systematics]

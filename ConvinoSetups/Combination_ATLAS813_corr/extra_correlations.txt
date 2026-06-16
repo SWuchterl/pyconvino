@@ -1,0 +1,47 @@
+#------------------------------------------------------------------------------
+#------------------------------------------------------------------------------
+#------------------------------------------------------------------------------
+# ATLAS 8 TeV - ATLAS 13 TeV correlations
+#------------------------------------------------------------------------------
+#------------------------------------------------------------------------------
+#------------------------------------------------------------------------------
+
+ATLAS_8TeV_norm_zjets = (0.25)  ATLAS_13TeV_norm_zjets
+ATLAS_8TeV_norm_singletop = (0.25)  ATLAS_13TeV_norm_tW
+
+ATLAS_8TeV_eff_j_jvf = (0.75) ATLAS_13TeV_eff_j_jvt
+
+ATLAS_8TeV_scale_j_Model1 = (0.75) ATLAS_13TeV_scale_j_NPModelling1
+ATLAS_8TeV_scale_j_Model2 = (0.75) ATLAS_13TeV_scale_j_NPModelling2
+ATLAS_8TeV_scale_j_Model3 = (0.75) ATLAS_13TeV_scale_j_NPModelling3
+ATLAS_8TeV_scale_j_Model4 = (0.75) ATLAS_13TeV_scale_j_NPModelling4
+
+ATLAS_8TeV_scale_j_Det1 = (0.75) ATLAS_13TeV_scale_j_NPDetector1
+ATLAS_8TeV_scale_j_Det2 = (0.75) ATLAS_13TeV_scale_j_NPDetector2
+
+ATLAS_8TeV_scale_j_Mix1 = (0.75) ATLAS_13TeV_scale_j_NPMixed1
+ATLAS_8TeV_scale_j_Mix2 = (0.75) ATLAS_13TeV_scale_j_NPMixed2
+ATLAS_8TeV_scale_j_Mix3 = (0.75) ATLAS_13TeV_scale_j_NPMixed3
+#ATLAS_8TeV_scale_j_Mix4 = (0.75) ATLAS_13TeV_scale_j_NPMixed4 #????? doesnt exist
+
+ATLAS_8TeV_scale_j_EtaIntercalibrationModel = (0.75) ATLAS_13TeV_scale_j_EtaIntercalibrationModelling
+ATLAS_8TeV_scale_j_PunchThrough = (0.75) ATLAS_13TeV_scale_j_PunchThroughMC16
+ATLAS_8TeV_scale_j_SinglePart = (0.75) ATLAS_13TeV_scale_j_SingleParticleHighPt
+ATLAS_8TeV_scale_j_PileupOffsetMu = (0.75) ATLAS_13TeV_scale_j_PileupOffsetMu
+ATLAS_8TeV_scale_j_PileupOffsetNPV = (0.75) ATLAS_13TeV_scale_j_PileupOffsetNPV
+ATLAS_8TeV_scale_j_PileupPt = (0.75) ATLAS_13TeV_scale_j_PileupPtTerm
+ATLAS_8TeV_scale_j_PileupRho = (0.75) ATLAS_13TeV_scale_j_PileupRhoTopology
+
+# modeling
+ATLAS_8TeV_modelling_ttbar_ShowerHadronization = (0.50) ATLAS_13TeV_modelling_ttbar_Herwig
+ATLAS_8TeV_modelling_ttbar_UnderlyingEvent = (0.50) ATLAS_13TeV_modelling_ttbar_A14Var1Up
+ATLAS_8TeV_modelling_ttbar_ColorReconnection = (0.50) ATLAS_13TeV_modelling_ttbar_ATLCR2
+
+ATLAS_8TeV_modelling_ttbar_Radiation = (0.25) ATLAS_13TeV_modelling_ttbar_isrmuRfac1p0fsrmuRfac0p5
+ATLAS_8TeV_modelling_ttbar_Radiation = (0.25) ATLAS_13TeV_modelling_ttbar_hdamp3mt
+ATLAS_8TeV_modelling_ttbar_Radiation = (0.25) ATLAS_13TeV_modelling_ttbar_Var3cUp
+
+ATLAS_8TeV_modelling_ttbar_MatrixElement = (0.25) ATLAS_13TeV_modelling_ttbar_TtbarNNLOReweight
+ATLAS_8TeV_modelling_ttbar_MatrixElement = (0.25) ATLAS_13TeV_modelling_ttbar_muR1p0muF2p0
+ATLAS_8TeV_modelling_ttbar_MatrixElement = (0.25) ATLAS_13TeV_modelling_ttbar_muR2p0muF1p0
+ATLAS_8TeV_modelling_ttbar_MatrixElement = (0.25) ATLAS_13TeV_modelling_ttbar_PtHard1
