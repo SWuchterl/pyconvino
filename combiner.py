@@ -80,6 +80,28 @@ class CombinationResult:
     nsys: int = 0
     nest: int = 0
 
+    # Stat/syst split and per-individual-systematic breakdown, for feeding a
+    # downstream fit's covariance-breakdown machinery (see
+    # docs/improvement_plan.md Q4/Q4b). All derived from the same frozen-
+    # Hessian-submatrix mechanism as impact_groups/impact_cov_groups above,
+    # just applied to every systematic as its own one-member group plus one
+    # group covering all of them.
+
+    # Combined-observable covariance (nest x nest) with every systematic
+    # frozen at 0 — the pure statistical/measurement-only uncertainty.
+    stat_only_covariance: np.ndarray = field(default_factory=lambda: np.zeros((0, 0)))
+
+    # Total systematic impact per combined observable: sqrt(full_err^2 -
+    # stat_only_err^2), the same quadrature convention as impact_groups.
+    total_syst_impact_up: np.ndarray = field(default_factory=lambda: np.zeros(0))
+    total_syst_impact_down: np.ndarray = field(default_factory=lambda: np.zeros(0))
+
+    # Per-individual-systematic impacts/frozen-covariance (one entry per
+    # systematic name, independent of any user-defined [uncertainty impacts]
+    # groups in impact_groups/impact_cov_groups above).
+    impact_per_systematic: dict[str, tuple[np.ndarray, np.ndarray]] = field(default_factory=dict)
+    cov_per_systematic: dict[str, np.ndarray] = field(default_factory=dict)
+
 
 class Combiner:
     """
@@ -216,7 +238,38 @@ class Combiner:
             chi2_fn, grad_eager, pars_best, chi2_min,
             all_sys_names, combined_err_up, combined_err_down,
             nsys, nest, corr_est, responses_symmetric, H_fit,
+            self.config.impact_groups,
         )
+
+        # 13. Stat/syst split + per-individual-systematic frozen covariance.
+        # Same mechanism as step 12, just applied to every systematic as its
+        # own one-member group plus a pseudo-group covering all of them (whose
+        # frozen covariance IS the stat-only covariance, and whose "impact" IS
+        # the total systematic impact).
+        if nsys > 0:
+            per_sys_groups: dict[str, list[str]] = {
+                name: [name] for name in all_sys_names
+            }
+            per_sys_groups["__stat_only__"] = list(all_sys_names)
+            per_sys_impacts, per_sys_covs = self._compute_impacts(
+                chi2_fn, grad_eager, pars_best, chi2_min,
+                all_sys_names, combined_err_up, combined_err_down,
+                nsys, nest, corr_est, responses_symmetric, H_fit,
+                per_sys_groups,
+            )
+            total_syst_impact_up, total_syst_impact_down = per_sys_impacts.pop(
+                "__stat_only__"
+            )
+            stat_only_covariance = per_sys_covs.pop("__stat_only__")
+            impact_per_systematic = per_sys_impacts
+            cov_per_systematic = per_sys_covs
+        else:
+            # No systematics: the combination is already stat-only.
+            stat_only_covariance = cov_fit[nsys:, nsys:].copy()
+            total_syst_impact_up = np.zeros(nest)
+            total_syst_impact_down = np.zeros(nest)
+            impact_per_systematic = {}
+            cov_per_systematic = {}
 
         return CombinationResult(
             chi2_min=float(chi2_min),
@@ -237,6 +290,11 @@ class Combiner:
             pars_best=np.array(pars_best),
             nsys=nsys,
             nest=nest,
+            stat_only_covariance=stat_only_covariance,
+            total_syst_impact_up=total_syst_impact_up,
+            total_syst_impact_down=total_syst_impact_down,
+            impact_per_systematic=impact_per_systematic,
+            cov_per_systematic=cov_per_systematic,
         )
 
     # ------------------------------------------------------------------
@@ -517,10 +575,15 @@ class Combiner:
         corr_est: np.ndarray,
         responses_symmetric: bool,
         H_fit: np.ndarray,
+        groups: dict[str, list[str]],
     ) -> tuple[dict[str, tuple[np.ndarray, np.ndarray]], dict[str, np.ndarray]]:
         """
-        For each impact group, freeze the group's systematics at 0 and compute
-        the impact in quadrature vs. the full error.
+        For each entry in `groups` (label -> member systematic names), freeze
+        the group's systematics at 0 and compute the impact in quadrature vs.
+        the full error. Called once for the user-defined
+        `self.config.impact_groups` and once for the per-individual-systematic
+        (+ all-frozen "stat-only") breakdown — same mechanism, different group
+        dict.
 
         The frozen-fit Hessian restricted to the free parameters is exactly the
         free-free submatrix of the full post-fit Hessian `H_fit`: freezing a
@@ -547,7 +610,7 @@ class Combiner:
         cov_results: dict[str, np.ndarray] = {}
         n = nsys + nest
 
-        for label, members in self.config.impact_groups.items():
+        for label, members in groups.items():
             frozen_idx = [sys_to_idx[m] for m in members if m in sys_to_idx]
             if not frozen_idx:
                 warnings.warn(
