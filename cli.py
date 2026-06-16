@@ -24,12 +24,17 @@ def main():
         "--debug", action="store_true",
         help="Print extra debug information"
     )
+    parser.add_argument(
+        "--export", choices=["npz", "json", "both"], default=None,
+        help="Also export machine-readable result(s) alongside the text "
+             "output, as <prefix>_result.npz / <prefix>_result.json"
+    )
 
     args = parser.parse_args()
 
     # Import here to keep startup fast
     from .combiner import Combiner
-    from .result import prepare_output_path, write_result
+    from .result import prepare_output_path, write_result, export_npz, export_json
 
     try:
         # Validate (and create) the output location up front, so a bad
@@ -43,6 +48,15 @@ def main():
         )
         result = combiner.combine()
         write_result(result, prefix=args.prefix)
+
+        if args.export in ("npz", "both"):
+            npz_path = f"{args.prefix}_result.npz"
+            export_npz(result, npz_path)
+            print(f"Result exported to {npz_path}")
+        if args.export in ("json", "both"):
+            json_path = f"{args.prefix}_result.json"
+            export_json(result, json_path)
+            print(f"Result exported to {json_path}")
 
         if not result.converged:
             print("WARNING: minimization did not fully converge", file=sys.stderr)

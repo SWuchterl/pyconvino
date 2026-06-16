@@ -409,3 +409,116 @@ def write_result(result: CombinationResult, prefix: str = "convino") -> None:
     out_path = prepare_output_path(prefix)
     out_path.write_text(text, encoding="utf-8")
     print(f"Result written to {out_path}")
+
+
+# ---------------------------------------------------------------------------
+# Machine-readable export (npz / json)
+# ---------------------------------------------------------------------------
+#
+# Built for a downstream covariance-style fit (e.g. a top-quark-mass chi2
+# fit) that treats other theory uncertainties (PDF, scale) as named
+# covariance matrices summed into the total experimental covariance, with a
+# per-source breakdown coming out of the same leave-one-out machinery. See
+# docs/improvement_plan.md Q4/Q4b for the full design.
+
+def to_dict(result: CombinationResult) -> dict:
+    """
+    Flatten a CombinationResult into a self-describing, nested dict suitable
+    for a downstream fit (or for export_npz/export_json below).
+
+    `combined_covariance`/`combined_correlation` are the nest×nest slices of
+    `cov_full`/`corr_full` — the marginal covariance over all profiled
+    nuisance parameters, i.e. exactly what a downstream chi2 fit needs.
+
+    `stat_only_covariance` is the same covariance with every systematic
+    frozen (pure statistical/measurement uncertainty); `total_syst_covariance`
+    is `combined_covariance - stat_only_covariance`. Do not sum
+    `combined_covariance` with the per-source matrices below — it already
+    contains all of stat+syst, summing would double-count.
+
+    `impact_per_systematic`/`cov_per_systematic` give a leave-one-out
+    breakdown per individual systematic (independent of any user-defined
+    `[uncertainty impacts]` groups, which are exposed separately as
+    `impact_groups`/`impact_cov_groups`). As with any quadrature-based
+    impact breakdown, per-source numbers are not required to sum in
+    quadrature to the total if systematics are mutually correlated.
+    """
+    nsys = result.nsys
+    combined_covariance = np.asarray(result.cov_full)[nsys:, nsys:]
+    combined_correlation = np.asarray(result.corr_full)[nsys:, nsys:]
+    total_syst_covariance = combined_covariance - np.asarray(result.stat_only_covariance)
+
+    return {
+        "combined_names": list(result.combined_names),
+        "combined_values": np.asarray(result.combined_values),
+        "combined_err_up": np.asarray(result.combined_err_up),
+        "combined_err_down": np.asarray(result.combined_err_down),
+        "combined_covariance": combined_covariance,
+        "combined_correlation": combined_correlation,
+        "chi2_min": float(result.chi2_min),
+        "converged": bool(result.converged),
+        "sys_names": list(result.sys_names),
+        "pulls": np.asarray(result.pulls),
+        "constraints": np.asarray(result.constraints),
+        "stat_only_covariance": np.asarray(result.stat_only_covariance),
+        "total_syst_covariance": total_syst_covariance,
+        "total_syst_impact_up": np.asarray(result.total_syst_impact_up),
+        "total_syst_impact_down": np.asarray(result.total_syst_impact_down),
+        "impact_groups": {
+            label: {"up": np.asarray(up), "down": np.asarray(down)}
+            for label, (up, down) in result.impact_groups.items()
+        },
+        "impact_cov_groups": {
+            label: np.asarray(cov) for label, cov in result.impact_cov_groups.items()
+        },
+        "impact_per_systematic": {
+            name: {"up": np.asarray(up), "down": np.asarray(down)}
+            for name, (up, down) in result.impact_per_systematic.items()
+        },
+        "cov_per_systematic": {
+            name: np.asarray(cov) for name, cov in result.cov_per_systematic.items()
+        },
+    }
+
+
+def _flatten_for_npz(d: dict, prefix: str = "") -> dict[str, np.ndarray]:
+    """Recursively flatten a to_dict()-shaped dict into a flat dict of arrays,
+    joining nested keys with '__' (e.g. impact_groups__GroupA__up)."""
+    out: dict[str, np.ndarray] = {}
+    for k, v in d.items():
+        key = f"{prefix}{k}"
+        if isinstance(v, dict):
+            out.update(_flatten_for_npz(v, prefix=f"{key}__"))
+        else:
+            out[key] = np.asarray(v)
+    return out
+
+
+def export_npz(result: CombinationResult, path) -> None:
+    """Export `to_dict(result)` to a compressed .npz file (flat keys, '__'-joined)."""
+    flat = _flatten_for_npz(to_dict(result))
+    np.savez_compressed(path, **flat)
+
+
+def _to_jsonable(obj):
+    if isinstance(obj, np.ndarray):
+        return obj.tolist()
+    if isinstance(obj, dict):
+        return {k: _to_jsonable(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [_to_jsonable(v) for v in obj]
+    if isinstance(obj, np.floating):
+        return float(obj)
+    if isinstance(obj, np.integer):
+        return int(obj)
+    if isinstance(obj, np.bool_):
+        return bool(obj)
+    return obj
+
+
+def export_json(result: CombinationResult, path) -> None:
+    """Export `to_dict(result)` to a JSON file (nested, ndarrays as lists)."""
+    import json
+
+    data = _to_jsonable(to_dict(result))
+    Path(path).write_text(json.dumps(data, indent=2), encoding="utf-8")
