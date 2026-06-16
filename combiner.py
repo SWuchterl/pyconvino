@@ -28,6 +28,8 @@ Steps performed:
 from __future__ import annotations
 
 import copy
+import sys
+import time
 import warnings
 from dataclasses import dataclass, field
 from typing import Optional
@@ -147,6 +149,7 @@ class Combiner:
         prefix: str = "convino",
         compute_impacts: bool = True,
         impacts_only: Optional[list[str]] = None,
+        verbose: bool = False,
     ):
         self.config = config
         self.meas_data = meas_data
@@ -154,6 +157,7 @@ class Combiner:
         self.prefix = prefix
         self.compute_impacts = compute_impacts
         self.impacts_only = impacts_only
+        self.verbose = verbose
         if impacts_only is not None:
             unknown = sorted(set(impacts_only) - set(config.impact_groups))
             if unknown:
@@ -170,13 +174,27 @@ class Combiner:
         prefix: str = "convino",
         compute_impacts: bool = True,
         impacts_only: Optional[list[str]] = None,
+        verbose: bool = False,
     ) -> "Combiner":
+        t0 = time.perf_counter()
         cfg = parse_config_file(config_path)
         meas_data = [parse_measurement_file(p) for p in cfg.measurement_files]
+        if verbose:
+            print(
+                f"[convino] parsed config + {len(meas_data)} measurement file(s): "
+                f"{time.perf_counter() - t0:.3f}s",
+                file=sys.stderr,
+            )
         return cls(
             cfg, meas_data, use_pearson=use_pearson, prefix=prefix,
             compute_impacts=compute_impacts, impacts_only=impacts_only,
+            verbose=verbose,
         )
+
+    def _vtime(self, label: str, t0: float) -> None:
+        """Print elapsed time since `t0` if `self.verbose` (CLI --verbose)."""
+        if self.verbose:
+            print(f"[convino] {label}: {time.perf_counter() - t0:.3f}s", file=sys.stderr)
 
     # ------------------------------------------------------------------
     # Public API
@@ -184,8 +202,10 @@ class Combiner:
 
     def combine(self) -> CombinationResult:
         cfg = self.config
+        t_total = time.perf_counter()
 
         # 1. Setup measurements
+        t0 = time.perf_counter()
         setups = [setup_measurement(d) for d in self.meas_data]
 
         # 2. Build global parameter index layout (mutates each setup in place)
@@ -193,8 +213,10 @@ class Combiner:
 
         # 3. Build prior inverse-covariance
         inv_C, C_exact = self._build_prior(all_sys_names)
+        self._vtime("setup + prior", t0)
 
         # 4. Build chi2
+        t0 = time.perf_counter()
         chi2_fn = make_chi2(setups, inv_C, nsys, nest, self.use_pearson)
         value_and_grad_fn = jax.jit(jax.value_and_grad(chi2_fn))
         hess_fn = jax.jit(jax.hessian(chi2_fn))
@@ -205,6 +227,7 @@ class Combiner:
         # The main fit uses the jitted value_and_grad_fn (fused fun/jac, one
         # forward+backward dispatch per evaluation point instead of two).
         grad_eager = jax.grad(chi2_fn)
+        self._vtime("chi2 build", t0)
 
         # responses_symmetric: every systematic response is symmetric
         # (Lk_up == -Lk_down, no kink at lambda=0). Computed here (rather than
@@ -236,10 +259,15 @@ class Combiner:
         x0 = self._initial_params(setups, nsys, nest)
 
         # 6. Minimization: exact one-step solve for the quadratic case, or the
-        # robust two-pass L-BFGS-B (with a Newton polish) otherwise.
+        # robust two-pass L-BFGS-B (with a Newton polish) otherwise. This is
+        # also where the jitted value_and_grad_fn/hess_fn first get XLA-
+        # compiled (jax.jit traces lazily, on first call), so this checkpoint
+        # includes that one-time compile cost, not just optimizer iterations.
+        t0 = time.perf_counter()
         pars_best, chi2_min, converged = self._minimize(
             value_and_grad_fn, x0, hess_fn=hess_fn, quadratic_fast_path=quadratic_fast_path
         )
+        self._vtime("minimize", t0)
 
         # 7. Post-fit Hessian → covariance
         #
@@ -252,6 +280,7 @@ class Combiner:
         # (constraints, displayed covariance matrix, error-bracket hints) uses
         # the true variance; the correlation matrix is unaffected (factor
         # cancels) and profile-likelihood errors are computed independently.
+        t0 = time.perf_counter()
         H_fit = np.array(hess_fn(pars_best))
         try:
             cov_fit = 2.0 * scipy_inv(H_fit)
@@ -303,6 +332,7 @@ class Combiner:
 
         # 11. Pre-combine systematic correlations (exact user-specified prior C)
         pre_sys_corr = C_exact
+        self._vtime("post-fit covariance + errors", t0)
 
         # 12. Uncertainty impacts (and per-group frozen covariance matrices).
         # Both this step and step 13 below sit behind `self.compute_impacts`
@@ -313,6 +343,7 @@ class Combiner:
         # 12 to a subset of the user-defined groups without touching step 13
         # (the per-systematic breakdown is a separate, generally cheaper-per-
         # entry feature used by the export API).
+        t0 = time.perf_counter()
         corr_est = corr_full[nsys:, nsys:]
         if self.compute_impacts:
             impact_groups_cfg = self.config.impact_groups
@@ -368,6 +399,7 @@ class Combiner:
             total_syst_impact_down = np.zeros(nest)
             impact_per_systematic = {}
             cov_per_systematic = {}
+        self._vtime("impacts", t0)
 
         # 14. Goodness of fit (ndf, chi2/ndf, p-value). See the ndf convention
         # documented on CombinationResult above.
@@ -379,6 +411,8 @@ class Combiner:
         else:
             chi2_per_ndf = float("nan")
             p_value = float("nan")
+
+        self._vtime("total", t_total)
 
         return CombinationResult(
             chi2_min=float(chi2_min),
@@ -459,12 +493,19 @@ class Combiner:
                 for sr in cfg_step.correlation_scans[scan_idx].ranges:
                     sr.nominal = sr.low + step * (sr.high - sr.low) / (n_steps - 1)
 
+                # The per-step Combiner is deliberately built non-verbose: a
+                # full phase breakdown per step per group would be far too
+                # noisy. Instead we print our own coarser per-step line here,
+                # timed from this loop, while the inner combine() stays
+                # silent regardless of self.verbose.
+                t0 = time.perf_counter()
                 step_results.append(
                     Combiner(
                         cfg_step, self.meas_data, use_pearson=self.use_pearson,
                         prefix=self.prefix, compute_impacts=compute_impacts,
                     ).combine()
                 )
+                self._vtime(f"scan '{scan.name}' step {step + 1}/{n_steps}", t0)
                 if single_pair:
                     sr0 = scan.ranges[0]
                     step_values.append(sr0.low + step * (sr0.high - sr0.low) / (n_steps - 1))

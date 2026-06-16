@@ -25,6 +25,11 @@ def main():
         help="Print extra debug information"
     )
     parser.add_argument(
+        "--verbose", action="store_true",
+        help="Print per-phase timing checkpoints (parse, chi2 build, "
+             "minimize, post-fit, impacts, total) to stderr"
+    )
+    parser.add_argument(
         "--export", choices=["npz", "json", "both"], default=None,
         help="Also export machine-readable result(s) alongside the text "
              "output, as <prefix>_result.npz / <prefix>_result.json"
@@ -79,6 +84,7 @@ def main():
             prefix=args.prefix,
             compute_impacts=not args.no_impacts,
             impacts_only=impacts_only,
+            verbose=args.verbose,
         )
         result = combiner.combine()
         write_result(result, prefix=args.prefix)
