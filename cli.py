@@ -29,8 +29,25 @@ def main():
         help="Also export machine-readable result(s) alongside the text "
              "output, as <prefix>_result.npz / <prefix>_result.json"
     )
+    impacts_group = parser.add_mutually_exclusive_group()
+    impacts_group.add_argument(
+        "--no-impacts", action="store_true",
+        help="Skip uncertainty-impact computation entirely (impact groups "
+             "and the per-systematic/stat-only breakdown) for the fastest "
+             "run when only the combined values/covariance are needed"
+    )
+    impacts_group.add_argument(
+        "--impacts-only", default=None, metavar="GROUP1,GROUP2",
+        help="Only compute the listed [uncertainty impacts] group(s) "
+             "instead of all of them (comma-separated labels); the per-"
+             "systematic/stat-only breakdown is unaffected"
+    )
 
     args = parser.parse_args()
+
+    impacts_only = None
+    if args.impacts_only is not None:
+        impacts_only = [g.strip() for g in args.impacts_only.split(",") if g.strip()]
 
     # Import here to keep startup fast
     from .combiner import Combiner
@@ -45,6 +62,8 @@ def main():
             args.config,
             use_pearson=args.pearson,
             prefix=args.prefix,
+            compute_impacts=not args.no_impacts,
+            impacts_only=impacts_only,
         )
         result = combiner.combine()
         write_result(result, prefix=args.prefix)

@@ -144,11 +144,22 @@ class Combiner:
         meas_data: list[MeasurementFileData],
         use_pearson: bool = False,
         prefix: str = "convino",
+        compute_impacts: bool = True,
+        impacts_only: Optional[list[str]] = None,
     ):
         self.config = config
         self.meas_data = meas_data
         self.use_pearson = use_pearson
         self.prefix = prefix
+        self.compute_impacts = compute_impacts
+        self.impacts_only = impacts_only
+        if impacts_only is not None:
+            unknown = sorted(set(impacts_only) - set(config.impact_groups))
+            if unknown:
+                raise ValueError(
+                    f"--impacts-only requested unknown impact group(s) {unknown}; "
+                    f"available: {sorted(config.impact_groups)}"
+                )
 
     @classmethod
     def from_config(
@@ -156,10 +167,15 @@ class Combiner:
         config_path: str,
         use_pearson: bool = False,
         prefix: str = "convino",
+        compute_impacts: bool = True,
+        impacts_only: Optional[list[str]] = None,
     ) -> "Combiner":
         cfg = parse_config_file(config_path)
         meas_data = [parse_measurement_file(p) for p in cfg.measurement_files]
-        return cls(cfg, meas_data, use_pearson=use_pearson, prefix=prefix)
+        return cls(
+            cfg, meas_data, use_pearson=use_pearson, prefix=prefix,
+            compute_impacts=compute_impacts, impacts_only=impacts_only,
+        )
 
     # ------------------------------------------------------------------
     # Public API
@@ -287,21 +303,47 @@ class Combiner:
         # 11. Pre-combine systematic correlations (exact user-specified prior C)
         pre_sys_corr = C_exact
 
-        # 12. Uncertainty impacts (and per-group frozen covariance matrices)
+        # 12. Uncertainty impacts (and per-group frozen covariance matrices).
+        # Both this step and step 13 below sit behind `self.compute_impacts`
+        # (--no-impacts): they are the dominant runtime cost on setups with
+        # many systematics/groups (see [[regression-tests]]), and a caller
+        # who only wants the combined values/covariance can skip them
+        # entirely. `self.impacts_only` (--impacts-only) instead narrows step
+        # 12 to a subset of the user-defined groups without touching step 13
+        # (the per-systematic breakdown is a separate, generally cheaper-per-
+        # entry feature used by the export API).
         corr_est = corr_full[nsys:, nsys:]
-        impact_groups, impact_cov_groups = self._compute_impacts(
-            chi2_fn, grad_eager, pars_best, chi2_min,
-            all_sys_names, combined_err_up, combined_err_down,
-            nsys, nest, corr_est, responses_symmetric, H_fit,
-            self.config.impact_groups,
-        )
+        if self.compute_impacts:
+            impact_groups_cfg = self.config.impact_groups
+            if self.impacts_only is not None:
+                impact_groups_cfg = {
+                    label: impact_groups_cfg[label] for label in self.impacts_only
+                }
+            impact_groups, impact_cov_groups = self._compute_impacts(
+                chi2_fn, grad_eager, pars_best, chi2_min,
+                all_sys_names, combined_err_up, combined_err_down,
+                nsys, nest, corr_est, responses_symmetric, H_fit,
+                impact_groups_cfg,
+            )
+        else:
+            impact_groups, impact_cov_groups = {}, {}
 
         # 13. Stat/syst split + per-individual-systematic frozen covariance.
         # Same mechanism as step 12, just applied to every systematic as its
         # own one-member group plus a pseudo-group covering all of them (whose
         # frozen covariance IS the stat-only covariance, and whose "impact" IS
         # the total systematic impact).
-        if nsys > 0:
+        if not self.compute_impacts:
+            # Skipped: leave NaN-filled placeholders of the right shape
+            # (rather than the zero-size dataclass defaults) so downstream
+            # consumers like to_dict()'s `combined_covariance -
+            # stat_only_covariance` don't hit a shape mismatch.
+            stat_only_covariance = np.full((nest, nest), np.nan)
+            total_syst_impact_up = np.full(nest, np.nan)
+            total_syst_impact_down = np.full(nest, np.nan)
+            impact_per_systematic = {}
+            cov_per_systematic = {}
+        elif nsys > 0:
             per_sys_groups: dict[str, list[str]] = {
                 name: [name] for name in all_sys_names
             }
