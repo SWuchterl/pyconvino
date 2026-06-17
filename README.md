@@ -37,7 +37,26 @@ Options:
 | `--scan` | Scan each `[correlations]` group that has an actual `(nominal & low : high)` range across `--scan-steps` points, recombining at each one; written to `P_scan_result.txt` (plus `.npz`/`.json` if `--export` is also given). |
 | `--scan-steps N` | Number of points per correlation-scan group (default: 6). |
 | `--verbose`  | Print per-phase timing checkpoints (parse, chi2 build, minimize, post-fit, impacts, total) to stderr. |
+| `--pd-reg-method {shift,clip,higham}` | Strategy for regularising a non-positive-definite prior correlation matrix (default: `shift`). A `UserWarning` is always emitted with diagnostics (number of negative eigenvalues, λ_min, max/RMS off-diagonal change). See below. |
 | `--debug`    | Print a full traceback on error. |
+
+### Prior correlation matrix regularisation
+
+The `[correlations]` block can specify values that together form a
+non-positive-definite matrix (e.g. a cycle of high correlations with a sign
+flip). When this happens a `UserWarning` is printed with λ_min, the number of
+negative eigenvalues, and the max/RMS off-diagonal change — and the matrix is
+fixed automatically using the chosen method:
+
+| `--pd-reg-method` | What it does |
+|---|---|
+| `shift` **(default)** | Adds the smallest δI that makes the matrix PD, then renormalises to restore unit diagonal. Every off-diagonal entry is scaled by the same factor 1/(1+δ) — easy to communicate to collaborators. |
+| `clip` | Reflects negative eigenvalues to ε via eigen-decomposition and renormalises. Change is concentrated along the problem eigenvectors. |
+| `higham` | Higham (2002) alternating-projection algorithm: nearest correlation matrix in Frobenius norm. Minimises total perturbation but requires iteration. |
+
+For the standard quadratic χ² (all-absolute systematics, Neyman scaling) the
+choice of method has **no effect on combined values or uncertainties** — it
+only affects nuisance pulls.
 
 Input files use the original Convino text format (measurement files with
 `[hessian]` / `[correlation matrix]` / `[not fitted]` / `[estimates]` /
@@ -71,12 +90,14 @@ and fast unit tests for the output-path handling.
 python -m unittest discover -t . -s test       # fast suite (~4 s)
 ```
 
-The full `corrV2` combination (~25 s; central values validated once against the
-original C++ Convino) is skipped by default — enable it with:
+Two slow tests are skipped by default — enable them with:
 
 ```bash
 CONVINO_SLOW_TESTS=1 python -m unittest discover -t . -s test
 ```
+
+- `corrV2` (~25 s): full ATLAS 8+13 / CMS 13 TeV combination; central values validated once against the original C++ Convino.
+- `test_pd_regularization_extreme`: runs the `Combination_ATLAS813CMS13_corrExtremeTest` setup with all three `--pd-reg-method` strategies and prints a side-by-side comparison table.
 
 If you change the numeric or formatted output *intentionally*, regenerate and
 commit the goldens:
