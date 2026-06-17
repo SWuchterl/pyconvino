@@ -150,6 +150,7 @@ class Combiner:
         compute_impacts: bool = True,
         impacts_only: Optional[list[str]] = None,
         verbose: bool = False,
+        pd_reg_method: str = "shift",
     ):
         self.config = config
         self.meas_data = meas_data
@@ -158,6 +159,7 @@ class Combiner:
         self.compute_impacts = compute_impacts
         self.impacts_only = impacts_only
         self.verbose = verbose
+        self.pd_reg_method = pd_reg_method
         if impacts_only is not None:
             unknown = sorted(set(impacts_only) - set(config.impact_groups))
             if unknown:
@@ -175,6 +177,7 @@ class Combiner:
         compute_impacts: bool = True,
         impacts_only: Optional[list[str]] = None,
         verbose: bool = False,
+        pd_reg_method: str = "shift",
     ) -> "Combiner":
         t0 = time.perf_counter()
         cfg = parse_config_file(config_path)
@@ -188,7 +191,7 @@ class Combiner:
         return cls(
             cfg, meas_data, use_pearson=use_pearson, prefix=prefix,
             compute_impacts=compute_impacts, impacts_only=impacts_only,
-            verbose=verbose,
+            verbose=verbose, pd_reg_method=pd_reg_method,
         )
 
     def _vtime(self, label: str, t0: float) -> None:
@@ -503,6 +506,7 @@ class Combiner:
                     Combiner(
                         cfg_step, self.meas_data, use_pearson=self.use_pearson,
                         prefix=self.prefix, compute_impacts=compute_impacts,
+                        pd_reg_method=self.pd_reg_method,
                     ).combine()
                 )
                 self._vtime(f"scan '{scan.name}' step {step + 1}/{n_steps}", t0)
@@ -606,8 +610,7 @@ class Combiner:
                 C[ib, ia] = rho
 
         C_exact = C.copy()  # exact user values for display
-        # Ensure positive definiteness (reflect negative eigenvalues)
-        C = _nearest_positive_definite(C)
+        C = _nearest_positive_definite(C, method=self.pd_reg_method, verbose=self.verbose)
         return scipy_inv(C), C_exact
 
     def _initial_params(
@@ -997,31 +1000,139 @@ class Combiner:
 # Utility
 # ---------------------------------------------------------------------------
 
-def _nearest_positive_definite(A: np.ndarray) -> np.ndarray:
+def _higham_nearest_corr(
+    A: np.ndarray,
+    eps: float = 1e-8,
+    max_iter: int = 500,
+    tol: float = 1e-12,
+) -> np.ndarray:
     """
-    Return the nearest positive-definite matrix to A.
-    Negative eigenvalues are reflected to a small positive epsilon.
+    Higham (2002) alternating-projection algorithm for the nearest correlation
+    matrix (unit diagonal, positive-definite) in Frobenius norm.
 
-    Warns (once per call) when this actually changes the matrix, i.e. when at
-    least one eigenvalue was negative beyond floating-point noise — not when
-    every eigenvalue was already at or above the epsilon floor. A user whose
-    prior correlation matrix was not positive-definite should be told that it
-    got silently regularised; a matrix that was already fine (e.g. identity)
-    should not generate noise on every run.
+    Alternates between:
+      1. Dykstra-corrected projection onto the PSD cone (with eigenvalue floor eps).
+      2. Projection onto the unit-diagonal hyperplane (set diagonal to 1.0).
+    Converges quadratically; for the matrix sizes typical here (< 500 systematics)
+    it needs only a handful of iterations.
+    """
+    n = A.shape[0]
+    Y = A.copy()
+    delta_S = np.zeros_like(A)
+
+    for _ in range(max_iter):
+        R = Y - delta_S
+        eigvals, eigvecs = np.linalg.eigh(R)
+        eigvals_floored = np.maximum(eigvals, eps)
+        X = eigvecs @ np.diag(eigvals_floored) @ eigvecs.T
+        delta_S = X - R
+        Y_prev = Y
+        Y = X.copy()
+        np.fill_diagonal(Y, 1.0)
+        norm_Y = max(1.0, np.linalg.norm(Y, "fro"))
+        if np.linalg.norm(Y - Y_prev, "fro") / norm_Y < tol:
+            break
+
+    return Y
+
+
+def _nearest_positive_definite(
+    A: np.ndarray,
+    method: str = "shift",
+    verbose: bool = False,
+) -> np.ndarray:
+    """
+    Return a positive-definite correlation matrix (unit diagonal) closest to A.
+
+    Three methods are available:
+
+    ``"shift"`` (default)
+        Add the smallest δI that makes all eigenvalues ≥ eps, then renormalise
+        rows/columns to restore unit diagonal.  All off-diagonal entries are
+        uniformly scaled by 1/(1+δ), giving a clear physical interpretation:
+        "your correlations were too large to be consistent; they have been
+        damped by factor X."
+
+    ``"clip"``
+        Eigenvalue decomposition — reflect negative eigenvalues to eps, then
+        renormalise rows/columns to restore unit diagonal.  The change is
+        concentrated in the directions (eigenvectors) with negative eigenvalues,
+        so the off-diagonal changes are not uniform.
+
+    ``"higham"``
+        Higham (2002) alternating-projection algorithm: returns the *nearest*
+        correlation matrix in Frobenius norm.  Minimises the total change to
+        the off-diagonal entries but requires an iterative solve.
+
+    A ``UserWarning`` is always emitted when regularisation was actually needed
+    (eigenvalue below floating-point noise floor), reporting the number and
+    magnitude of negative eigenvalues plus the off-diagonal change statistics.
+    With ``verbose=True`` an additional diagnostic line is printed to stderr.
     """
     if A.size == 0:
-        return A  # no systematics in the prior (e.g. stat-only combination)
-    A = (A + A.T) / 2.0
-    eigvals, eigvecs = np.linalg.eigh(A)
-    eps = 1e-10 * max(1.0, np.max(np.abs(eigvals)))
-    # Use a small negative tolerance so genuine floating-point noise around 0
-    # (e.g. eigvals == -1e-16 for an already-PD matrix) does not trigger the
-    # warning; only eigenvalues meaningfully below the epsilon floor count.
-    if np.any(eigvals < -eps):
-        warnings.warn(
-            "Prior correlation matrix was not positive-definite "
-            "(had negative eigenvalues); it has been regularized by "
-            "reflecting negative eigenvalues to a small positive epsilon."
+        return A  # stat-only combination — no systematics
+
+    n = A.shape[0]
+    A = (A + A.T) / 2.0  # enforce exact symmetry
+
+    eigvals = np.linalg.eigvalsh(A)  # sorted ascending
+    min_eigval = float(eigvals[0])
+    max_abs_eigval = float(np.max(np.abs(eigvals)))
+    # PD eigenvalue floor and FP-noise detection threshold (two orders of
+    # magnitude apart so noise around 0 does not trigger regularisation).
+    eps = 1e-8 * max(1.0, max_abs_eigval)
+    noise_tol = 1e-10 * max(1.0, max_abs_eigval)
+
+    if min_eigval >= -noise_tol:
+        return A  # already PD within floating-point tolerance
+
+    n_neg = int(np.sum(eigvals < -noise_tol))
+
+    if method == "clip":
+        eigvals_full, eigvecs = np.linalg.eigh(A)
+        eigvals_clipped = np.maximum(eigvals_full, eps)
+        C_reg = eigvecs @ np.diag(eigvals_clipped) @ eigvecs.T
+        d = np.sqrt(np.diag(C_reg))
+        C_reg = C_reg / np.outer(d, d)
+        method_msg = f"eigenvalue clip + renorm (eps={eps:.2g})"
+
+    elif method == "shift":
+        delta = float(-min_eigval + eps)
+        C_reg = A + delta * np.eye(n)
+        d = np.sqrt(np.diag(C_reg))  # = sqrt(1 + delta) uniformly
+        C_reg = C_reg / np.outer(d, d)
+        scale = 1.0 / (1.0 + delta)
+        method_msg = (
+            f"diagonal shift δ={delta:.4g}, "
+            f"all correlations scaled by {scale:.6f}"
         )
-    eigvals_clipped = np.maximum(eigvals, eps)
-    return eigvecs @ np.diag(eigvals_clipped) @ eigvecs.T
+
+    elif method == "higham":
+        C_reg = _higham_nearest_corr(A, eps=eps)
+        method_msg = "Higham (2002) nearest correlation matrix (Frobenius-optimal)"
+
+    else:
+        raise ValueError(
+            f"Unknown pd_reg_method {method!r}; choose 'clip', 'shift', or 'higham'"
+        )
+
+    mask = ~np.eye(n, dtype=bool)
+    max_change = float(np.max(np.abs(C_reg[mask] - A[mask])))
+    rms_change = float(np.sqrt(np.mean((C_reg[mask] - A[mask]) ** 2)))
+
+    warnings.warn(
+        f"Prior correlation matrix is not positive-definite: "
+        f"{n_neg} negative eigenvalue(s), smallest λ={min_eigval:.4g}. "
+        f"Regularised via {method_msg}. "
+        f"Off-diagonal change — max |Δρ|={max_change:.4g}, RMS |Δρ|={rms_change:.4g}.",
+        stacklevel=3,
+    )
+    if verbose:
+        print(
+            f"[convino] PD regularisation ({method}): "
+            f"{n_neg} neg. eigenvalue(s), λ_min={min_eigval:.6g}, "
+            f"max |Δρ|={max_change:.6g}, RMS |Δρ|={rms_change:.6g}",
+            file=sys.stderr,
+        )
+
+    return C_reg
