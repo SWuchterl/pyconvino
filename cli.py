@@ -59,6 +59,15 @@ def main():
         help="Number of points per correlation scan group (default: 6, "
              "matching the original -s option's fixed step count)"
     )
+    parser.add_argument(
+        "--pd-reg-method", choices=["shift", "clip", "higham"], default="shift",
+        dest="pd_reg_method",
+        help="Method used to regularise a non-positive-definite prior correlation "
+             "matrix: 'shift' (default) adds the smallest δI and renormalises, "
+             "uniformly damping all correlations; 'clip' reflects negative "
+             "eigenvalues to eps and renormalises; 'higham' finds the nearest "
+             "correlation matrix in Frobenius norm via alternating projections"
+    )
 
     args = parser.parse_args()
 
@@ -85,6 +94,7 @@ def main():
             compute_impacts=not args.no_impacts,
             impacts_only=impacts_only,
             verbose=args.verbose,
+            pd_reg_method=args.pd_reg_method,
         )
         result = combiner.combine()
         write_result(result, prefix=args.prefix)
