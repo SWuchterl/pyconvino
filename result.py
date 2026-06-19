@@ -536,6 +536,14 @@ def to_dict(result: CombinationResult) -> dict:
         "cov_per_systematic": {
             name: np.asarray(cov) for name, cov in result.cov_per_systematic.items()
         },
+        # Signed linear response matrix (nest × nsys): shift in combined_values[b]
+        # for +1σ of nuisance i. Columns ordered as sys_names. See CombinationResult
+        # docstring for the derivation from the Hessian cross-block.
+        "impact_matrix": np.asarray(result.impact_matrix),
+        # Impact-weighted mean pull per user-defined [uncertainty impacts] group.
+        # Two weighting conventions (see CombinationResult docstring).
+        "pull_per_group_mean": {k: float(v) for k, v in result.pull_per_group_mean.items()},
+        "pull_per_group_norm": {k: float(v) for k, v in result.pull_per_group_norm.items()},
     }
 
 

@@ -131,6 +131,24 @@ class CombinationResult:
     impact_per_systematic: dict[str, tuple[np.ndarray, np.ndarray]] = field(default_factory=dict)
     cov_per_systematic: dict[str, np.ndarray] = field(default_factory=dict)
 
+    # Signed linear response matrix: impact_matrix[b, i] is the shift in
+    # combined_values[b] for a +1σ variation of nuisance i, derived from the
+    # post-fit Hessian cross-block A = -inv(H_xx) @ H_xt. Shape (nest, nsys).
+    # NaN-filled if the Hessian was singular; shape (nest, 0) when nsys == 0.
+    # Unlike impact_per_systematic (unsigned quadrature magnitudes), this gives
+    # the full signed response vector needed for a nuisance-parameter downstream
+    # fit (chi2 = (r - A @ theta)^T C_stat^{-1} (r - A @ theta) + ||theta||^2).
+    impact_matrix: np.ndarray = field(default_factory=lambda: np.zeros((0, 0)))
+
+    # Impact-weighted mean nuisance pull per user-defined [uncertainty impacts]
+    # group. Two weighting conventions:
+    #   mean: weight_i = mean_b(|impact_per_systematic[i][0][b]|)
+    #   norm: weight_i = norm_b(impact_per_systematic[i][0])
+    # pull_g = Σ_i w_i * pull_i / Σ_i w_i  (sum over members of group g).
+    # Empty when compute_impacts=False (--no-impacts) or nsys == 0.
+    pull_per_group_mean: dict[str, float] = field(default_factory=dict)
+    pull_per_group_norm: dict[str, float] = field(default_factory=dict)
+
 
 class Combiner:
     """
@@ -291,6 +309,23 @@ class Combiner:
             cov_fit = np.full_like(H_fit, np.nan)
             warnings.warn("Post-fit Hessian not invertible; covariance set to NaN")
 
+        # 7b. Signed response matrix: shift in combined_values[b] for +1σ of
+        # nuisance i, from the Hessian cross-block A = -inv(H_xx) @ H_xt.
+        # H_xx = H_fit[nsys:, nsys:] is the observable-observable block
+        # (= 2 * effective measurement inv-covariance), H_xt = H_fit[nsys:,
+        # :nsys] is the observable-systematic cross block (= -2 * eff-inv-cov @
+        # L), so A = -H_xx^{-1} H_xt = L_eff, the effective combined-space
+        # response matrix. Uses the already-computed H_fit; no new fits needed.
+        if nsys > 0:
+            H_xx = H_fit[nsys:, nsys:]
+            H_xt = H_fit[nsys:, :nsys]
+            try:
+                impact_matrix = -scipy_inv(H_xx) @ H_xt
+            except np.linalg.LinAlgError:
+                impact_matrix = np.full((nest, nsys), np.nan)
+        else:
+            impact_matrix = np.zeros((nest, 0))
+
         # 8. Errors on the combined observables.
         #
         # C++ Convino runs Minuit MINOS for every combined quantity
@@ -404,6 +439,35 @@ class Combiner:
             cov_per_systematic = {}
         self._vtime("impacts", t0)
 
+        # 13b. Group-level effective pulls: impact-weighted mean pull per
+        # user-defined [uncertainty impacts] group. Two weighting conventions
+        # are exported (mean: per-bin average |impact|; norm: Euclidean norm of
+        # the impact vector over bins). Only available when impacts were computed
+        # (both per-systematic breakdown above and user-defined groups) and nsys > 0.
+        if self.compute_impacts and nsys > 0 and impact_per_systematic:
+            sys_to_pull = {n: float(pulls[i]) for i, n in enumerate(all_sys_names)}
+            pull_per_group_mean: dict[str, float] = {}
+            pull_per_group_norm: dict[str, float] = {}
+            for group_label, members in self.config.impact_groups.items():
+                wm_sum = wn_sum = 0.0
+                wm_pull = wn_pull = 0.0
+                for name in members:
+                    if name not in impact_per_systematic:
+                        continue
+                    impact_vec = np.asarray(impact_per_systematic[name][0])
+                    wm = float(np.mean(np.abs(impact_vec)))
+                    wn = float(np.linalg.norm(impact_vec))
+                    p = sys_to_pull[name]
+                    wm_sum += wm
+                    wn_sum += wn
+                    wm_pull += wm * p
+                    wn_pull += wn * p
+                pull_per_group_mean[group_label] = wm_pull / wm_sum if wm_sum > 0 else 0.0
+                pull_per_group_norm[group_label] = wn_pull / wn_sum if wn_sum > 0 else 0.0
+        else:
+            pull_per_group_mean = {}
+            pull_per_group_norm = {}
+
         # 14. Goodness of fit (ndf, chi2/ndf, p-value). See the ndf convention
         # documented on CombinationResult above.
         n_meas = sum(len(s.x_meas) for s in setups)
@@ -444,6 +508,9 @@ class Combiner:
             total_syst_impact_down=total_syst_impact_down,
             impact_per_systematic=impact_per_systematic,
             cov_per_systematic=cov_per_systematic,
+            impact_matrix=impact_matrix,
+            pull_per_group_mean=pull_per_group_mean,
+            pull_per_group_norm=pull_per_group_norm,
         )
 
     def scan_correlations(
