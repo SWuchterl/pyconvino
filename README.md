@@ -31,7 +31,7 @@ Options:
 |------|---------|
 | `--prefix P` | Output file prefix (default: `convino`) — result goes to `P_result.txt`. May include a directory (`out/run1`); missing directories are created, and an unwritable destination is rejected up front (before the fit) rather than after. |
 | `--pearson`  | Use the Pearson χ² instead of the default Neyman χ². |
-| `--export {npz,json,both}` | Also write a machine-readable result (`P_result.npz`/`.json`) alongside the text output — combined values/errors, full covariance, stat/syst split, and per-systematic impacts, for feeding a downstream fit. |
+| `--export {npz,json,both}` | Also write a machine-readable result (`P_result.npz`/`.json`) alongside the text output — combined values/errors, full covariance, stat/syst split, per-systematic impacts, signed response matrix (`impact_matrix`), and group-level pulls, for feeding a downstream fit. |
 | `--no-impacts` | Skip uncertainty-impact computation entirely (both user-defined impact groups and the per-systematic/stat-only breakdown) — fastest run when only combined values/covariance are needed. Mutually exclusive with `--impacts-only`. |
 | `--impacts-only GROUP1,GROUP2` | Only compute the listed `[uncertainty impacts]` group(s) instead of all of them; the per-systematic/stat-only breakdown is unaffected. Mutually exclusive with `--no-impacts`. |
 | `--scan` | Scan each `[correlations]` group that has an actual `(nominal & low : high)` range across `--scan-steps` points, recombining at each one; written to `P_scan_result.txt` (plus `.npz`/`.json` if `--export` is also given). |
@@ -72,12 +72,15 @@ result = Combiner.from_config("rho_config.txt").combine()
 write_result(result, prefix="mycombo")
 ```
 
-`CombinationResult` also carries `ndf`/`chi2_per_ndf`/`p_value`, a stat/syst covariance
-split (`stat_only_covariance`, `total_syst_impact_up/down`), and a per-systematic
-leave-one-out breakdown (`impact_per_systematic`, `cov_per_systematic`) — exported via
-`result.to_dict()` / `export_npz()` / `export_json()` (`convino_jax.result`). For
-scanning a correlation assumption instead of a single fit, use
-`Combiner.scan_correlations()`.
+`CombinationResult` also carries:
+
+- `ndf` / `chi2_per_ndf` / `p_value` — goodness-of-fit figures.
+- `stat_only_covariance`, `total_syst_impact_up/down` — stat/syst covariance split.
+- `impact_per_systematic`, `cov_per_systematic` — per-systematic leave-one-out breakdown (unsigned quadrature impacts and frozen covariances).
+- `impact_matrix` — signed linear response matrix of shape `(nest, nsys)`: column `i` is the shift in each combined observable for a +1σ variation of nuisance `i` (ordered as `sys_names`). Derived from the post-fit Hessian cross-block `A = −inv(H_xx) @ H_xt`; satisfies `A @ A.T = total_syst_covariance` for independent nuisances. Suitable for a nuisance-parameter downstream fit `χ² = (r − A θ)ᵀ C_stat⁻¹ (r − A θ) + ‖θ‖²`.
+- `pull_per_group_mean`, `pull_per_group_norm` — impact-weighted mean nuisance pull per user-defined `[uncertainty impacts]` group. Two weighting conventions: `mean` uses the per-bin average `|impact[b]|` as weight; `norm` uses the Euclidean norm. Only populated when `compute_impacts=True` and at least one group is defined.
+
+All fields are exported via `to_dict()` / `export_npz()` / `export_json()` (`convino_jax.result`). For scanning a correlation assumption instead of a single fit, use `Combiner.scan_correlations()`.
 
 ## Tests
 

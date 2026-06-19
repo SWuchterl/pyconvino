@@ -103,6 +103,81 @@ class ExportRoundTripTest(unittest.TestCase):
                 np.testing.assert_allclose(loaded["impact_groups"][label]["up"], ud["up"])
                 np.testing.assert_allclose(loaded["impact_groups"][label]["down"], ud["down"])
 
+    # ------------------------------------------------------------------
+    # Tests for impact_matrix (C) and pull_per_group (B)
+    # ------------------------------------------------------------------
+
+    def test_impact_matrix_shape(self):
+        d = self.expected
+        nsys, nest = self.result.nsys, self.result.nest
+        self.assertEqual(d["impact_matrix"].shape, (nest, nsys))
+        self.assertFalse(np.any(np.isnan(d["impact_matrix"])), "impact_matrix contains NaN")
+
+    def test_impact_matrix_gram_is_psd(self):
+        # A @ A.T is a Gram matrix, so its eigenvalues must all be >= 0.
+        A = self.expected["impact_matrix"]
+        eigvals = np.linalg.eigvalsh(A @ A.T)
+        self.assertTrue(np.all(eigvals >= -1e-10 * np.max(np.abs(eigvals))),
+                        f"A @ A.T has negative eigenvalue: {eigvals.min():.3e}")
+
+    def test_impact_matrix_columns_bounded(self):
+        # Each column is the response of all combined observables to one nuisance.
+        # The norm of the shift should not exceed the total combined error.
+        A = self.expected["impact_matrix"]
+        max_err = float(np.max(self.expected["combined_err_up"]))
+        col_norms = np.linalg.norm(A, axis=0)
+        # No single nuisance should shift all observables by more than the
+        # total error times a generous factor (any larger would be a clear bug).
+        self.assertTrue(np.all(col_norms < 10.0 * max_err),
+                        f"Unreasonably large impact_matrix column norm: {col_norms.max():.3e}")
+
+    def test_impact_matrix_npz_round_trip(self):
+        with tempfile.TemporaryDirectory() as td:
+            path = Path(td) / "result.npz"
+            export_npz(self.result, path)
+            loaded = np.load(path, allow_pickle=False)
+            np.testing.assert_array_equal(
+                loaded["impact_matrix"], self.expected["impact_matrix"]
+            )
+
+    def test_pull_per_group_keys(self):
+        # Both dicts should have exactly the same keys as impact_groups.
+        d = self.expected
+        expected_keys = set(d["impact_groups"].keys())
+        self.assertEqual(set(d["pull_per_group_mean"].keys()), expected_keys)
+        self.assertEqual(set(d["pull_per_group_norm"].keys()), expected_keys)
+
+    def test_pull_per_group_finite(self):
+        for label, v in self.expected["pull_per_group_mean"].items():
+            self.assertTrue(np.isfinite(v), f"pull_per_group_mean[{label!r}] is not finite")
+        for label, v in self.expected["pull_per_group_norm"].items():
+            self.assertTrue(np.isfinite(v), f"pull_per_group_norm[{label!r}] is not finite")
+
+    def test_pull_per_group_consistent_sign(self):
+        # mean and norm weightings should give the same sign (or both zero).
+        for label in self.expected["pull_per_group_mean"]:
+            vm = self.expected["pull_per_group_mean"][label]
+            vn = self.expected["pull_per_group_norm"][label]
+            if abs(vm) > 1e-12 and abs(vn) > 1e-12:
+                self.assertEqual(
+                    np.sign(vm), np.sign(vn),
+                    f"pull_per_group sign mismatch for group {label!r}: mean={vm:.4f}, norm={vn:.4f}"
+                )
+
+    def test_pull_per_group_npz_round_trip(self):
+        with tempfile.TemporaryDirectory() as td:
+            path = Path(td) / "result.npz"
+            export_npz(self.result, path)
+            loaded = np.load(path, allow_pickle=False)
+            for label, v in self.expected["pull_per_group_mean"].items():
+                np.testing.assert_allclose(
+                    float(loaded[f"pull_per_group_mean__{label}"]), v
+                )
+            for label, v in self.expected["pull_per_group_norm"].items():
+                np.testing.assert_allclose(
+                    float(loaded[f"pull_per_group_norm__{label}"]), v
+                )
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -108,6 +108,22 @@ def result_to_arrays(result) -> dict[str, np.ndarray]:
         out["impact_per_sys_labels"] = np.asarray(sys_labels)
         out["impact_per_sys_up"] = sys_up.astype(float)
         out["impact_per_sys_down"] = sys_down.astype(float)
+
+    # Signed linear response matrix and group-level pulls (C and B in the
+    # downstream-fit improvement plan). Columns of impact_matrix follow
+    # result.sys_names order (config order, not sorted).
+    if result.impact_matrix.size > 0:
+        out["impact_matrix"] = np.asarray(result.impact_matrix, dtype=float)
+
+    if result.pull_per_group_mean:
+        group_labels = sorted(result.pull_per_group_mean.keys())
+        out["pull_group_labels"] = np.asarray(group_labels)
+        out["pull_per_group_mean"] = np.array(
+            [result.pull_per_group_mean[l] for l in group_labels], dtype=float
+        )
+        out["pull_per_group_norm"] = np.array(
+            [result.pull_per_group_norm[l] for l in group_labels], dtype=float
+        )
     return out
 
 
