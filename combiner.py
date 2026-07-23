@@ -149,6 +149,12 @@ class CombinationResult:
     pull_per_group_mean: dict[str, float] = field(default_factory=dict)
     pull_per_group_norm: dict[str, float] = field(default_factory=dict)
 
+    # True when [global] isDifferential/normalise were both set: combined_values/
+    # combined_err_up/down and the combined-observable block of cov_full/corr_full
+    # were bin-renormalised, so they describe shape (fractions summing to 1), not
+    # the original absolute bin values. See Combiner._normalise_differential.
+    normalised: bool = False
+
 
 class Combiner:
     """
@@ -241,13 +247,20 @@ class Combiner:
         chi2_fn = make_chi2(setups, inv_C, nsys, nest, self.use_pearson)
         value_and_grad_fn = jax.jit(jax.value_and_grad(chi2_fn))
         hess_fn = jax.jit(jax.hessian(chi2_fn))
-        # Eager gradient (constructed once) for the profile/impact refits. The
-        # jitted value_and_grad_fn is NOT reused there: jit reassociates float
-        # ops at the ~1e-14 level, which the impact quadrature
-        # sqrt(err_full^2 - err_frozen^2) amplifies into the printed digits.
-        # The main fit uses the jitted value_and_grad_fn (fused fun/jac, one
-        # forward+backward dispatch per evaluation point instead of two).
-        grad_eager = jax.grad(chi2_fn)
+        # Gradient for the profile/impact refits (_minimize_frozen/_profile_error):
+        # jitted, so the many L-BFGS-B iterations inside a refit -- and the
+        # repeated refits inside a brentq profile scan -- reuse one cached XLA
+        # executable instead of paying eager dispatch per op per call. This is
+        # what made the asymmetric-response impacts path slow (see
+        # docs/paper_benchmark_crosscheck.md Finding 1). Safe to jit here despite
+        # the impact quadrature sqrt(err_full^2 - err_frozen^2)'s sensitivity to
+        # float-reassociation noise: L-BFGS-B's own stopping rule (gtol=1e-8) is
+        # far looser than jit's ~1e-14 reassociation noise, so it converges to the
+        # same point either way, just faster. (This is a separate, non-fused jit
+        # of grad alone -- NOT the fused, jitted value_and_grad_fn below, which
+        # the main fit uses and which reassociates differently; validated against
+        # real C++ reference numbers in test/test_impacts_asymmetric.py.)
+        grad_search = jax.jit(jax.grad(chi2_fn))
         self._vtime("chi2 build", t0)
 
         # responses_symmetric: every systematic response is symmetric
@@ -353,7 +366,7 @@ class Combiner:
         if not responses_symmetric:
             for k in range(nest):
                 eu, ed = self._profile_error(
-                    chi2_fn, grad_eager, pars_best, chi2_min, nsys + k, hesse_errs[k]
+                    chi2_fn, grad_search, pars_best, chi2_min, nsys + k, hesse_errs[k]
                 )
                 combined_err_up[k] = eu
                 combined_err_down[k] = ed
@@ -390,7 +403,7 @@ class Combiner:
                     label: impact_groups_cfg[label] for label in self.impacts_only
                 }
             impact_groups, impact_cov_groups = self._compute_impacts(
-                chi2_fn, grad_eager, pars_best, chi2_min,
+                chi2_fn, grad_search, pars_best, chi2_min,
                 all_sys_names, combined_err_up, combined_err_down,
                 nsys, nest, corr_est, responses_symmetric, H_fit,
                 impact_groups_cfg,
@@ -419,7 +432,7 @@ class Combiner:
             }
             per_sys_groups["__stat_only__"] = list(all_sys_names)
             per_sys_impacts, per_sys_covs = self._compute_impacts(
-                chi2_fn, grad_eager, pars_best, chi2_min,
+                chi2_fn, grad_search, pars_best, chi2_min,
                 all_sys_names, combined_err_up, combined_err_down,
                 nsys, nest, corr_est, responses_symmetric, H_fit,
                 per_sys_groups,
@@ -479,6 +492,34 @@ class Combiner:
             chi2_per_ndf = float("nan")
             p_value = float("nan")
 
+        # 15. Differential normalisation ([global] isDifferential + normalise,
+        # paper Sec. 2.4). Purely a post-processing rescale of the already-
+        # combined result: overwrites combined_vals/errs and the combined-
+        # observable block of cov_fit/corr_full, in place, after impacts (which
+        # describe the pre-normalisation fit, matching C++: normaliser.cpp runs
+        # after the impact table is filled). Unlike C++ (which invalidates
+        # chi2min_/pulls_/constraints_/the full correlation matrix afterwards by
+        # setting them to -1/empty), chi2_min/ndf/pulls/constraints/impacts here
+        # are deliberately left describing the pre-normalisation fit rather than
+        # nulled out — they remain meaningful (goodness-of-fit of the combination
+        # that was normalised), just on a different scale than combined_values.
+        normalised = bool(cfg.is_differential and cfg.normalise)
+        if normalised:
+            t0 = time.perf_counter()
+            cov_comb = cov_fit[nsys:, nsys:]
+            combined_vals, cov_comb_normed = self._normalise_differential(
+                combined_vals, cov_comb
+            )
+            combined_err_up = combined_err_down = np.sqrt(
+                np.maximum(np.diag(cov_comb_normed), 0.0)
+            )
+            cov_fit = cov_fit.copy()
+            cov_fit[nsys:, nsys:] = cov_comb_normed
+            diag_std = np.sqrt(np.maximum(np.diag(cov_fit), 1e-30))
+            corr_full = cov_fit / np.outer(diag_std, diag_std)
+            np.fill_diagonal(corr_full, 1.0)
+            self._vtime("differential normalisation", t0)
+
         self._vtime("total", t_total)
 
         return CombinationResult(
@@ -496,6 +537,7 @@ class Combiner:
             constraints=constraints,
             corr_full=corr_full,
             cov_full=cov_fit,
+            normalised=normalised,
             all_names=all_sys_names + combined_names,
             pre_sys_corr=pre_sys_corr,
             impact_groups=impact_groups,
@@ -1061,6 +1103,41 @@ class Combiner:
             cov_results[label] = est_cov
 
         return results, cov_results
+
+    def _normalise_differential(
+        self,
+        combined_vals: np.ndarray,
+        cov_est: np.ndarray,
+        n_iter: int = 1_000_000,
+        seed: int = 0,
+    ) -> tuple[np.ndarray, np.ndarray]:
+        """
+        Bin-renormalisation for differential combinations ([global] isDifferential
+        + normalise, paper Sec. 2.4): rescale each combined bin by the sum over all
+        bins, propagating the uncertainty by Monte Carlo since the ratio is
+        nonlinear in the (correlated) bin values. Ports
+        old/Convino/src/normaliser.cpp's default (text-interface) behavior — no
+        addFloatingBin support, since that is a C++-interface-only extension never
+        exposed through the base config file.
+
+        For each of `n_iter` draws x ~ N(combined_vals, cov_est): divide x by its
+        own sum, subtract the nominal fraction, and accumulate the outer product.
+        The result is the empirical covariance of the normalised fractions; C++
+        does the same accumulation in a loop with a fixed seed(0)/1e6-iteration
+        default, which this matches in spirit (MC estimates from the two RNGs will
+        not agree bit-for-bit, only within the O(1/sqrt(n_iter)) MC uncertainty).
+
+        Returns (normalised_vals, normalised_cov), both shape matching
+        combined_vals/cov_est.
+        """
+        rng = np.random.default_rng(seed)
+        sum_nominal = combined_vals.sum()
+        nominal_frac = combined_vals / sum_nominal
+        samples = rng.multivariate_normal(combined_vals, cov_est, size=n_iter)
+        sum_varied = samples.sum(axis=1, keepdims=True)
+        frac_dev = samples / sum_varied - nominal_frac
+        normalised_cov = (frac_dev.T @ frac_dev) / n_iter
+        return nominal_frac, normalised_cov
 
 
 # ---------------------------------------------------------------------------
