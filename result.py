@@ -515,6 +515,7 @@ def to_dict(result: CombinationResult) -> dict:
         "chi2_per_ndf": float(result.chi2_per_ndf),
         "p_value": float(result.p_value),
         "converged": bool(result.converged),
+        "normalised": bool(result.normalised),
         "sys_names": list(result.sys_names),
         "pulls": np.asarray(result.pulls),
         "constraints": np.asarray(result.constraints),

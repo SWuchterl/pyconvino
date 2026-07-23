@@ -1,0 +1,92 @@
+
+This is an example base file.
+The header can be used for documentation and will be ignored by the program.
+Comments within the blocks have to begin with #.
+The input block lists the measurement files. For details, please see exampleMeasurement1.txt
+The other blocks are commented individually
+
+[global]
+ # this section defines whether the inputs should be treated as if they are a differential measurement.
+ # in particular, whether they should be normalised.
+ # the defaults are false
+    #isDifferential = false
+    #normalise = false
+[end global]
+
+[inputs]
+
+    nFiles = 3
+
+    file0 = exampleMeasurement1.txt
+    file1 = exampleMeasurement2.txt
+    file2 = exampleMeasurement3.txt
+    
+[end inputs]
+	
+	
+[observables]
+	
+	# This block defines which estimates should be combined.
+	# The combined name of the observable can be chosen freely.
+	
+	combined_a = estimate_a1 + estimate_a2 + estimate_a3
+	combined_b = estimate_b1 + estimate_b2 + estimate_b3
+	
+[end observables]
+	
+	
+# correlations syntax: 
+# parameter = (<nominal correlation> & <scan from> : <to>) <other parameter> + other correlations
+# entries for scan are optional. If not used, syntax: "(<nominal correlation>)"
+[correlations]
+	
+	# This block defines the assumptions on the correlations that are not given 
+	# in the individual measurement files. (They can be redefined here, though)
+	# It is adviced that most correlations that are known are given in the measurement files,
+	# e.g. the case for fully consistent estimates obtained in measurements from one experiment.
+	
+	# The syntax for correlation assumptions defined here is as follows:
+	# parameter = (<nominal correlation> & <scan from> : <to>) <other parameter> + <other correlations with same syntax>
+	# Example: sys_b1 has a nominal correlation of 0.2 to sys_c2
+	#          this correlation should be scanned from -0.1 to 0.4
+	
+	sys_a1 =  (0 & -0.9 : 0.9) sys_b2
+	# or without a scan:
+	#    sys_b1 = (0.2) sys_c2
+	# more than one correlation simultaneously:
+	
+	sys_a1 = (0.2 & -0.9 : 0.9) sys_c2 + (0.2 & 0.4 : -0.4) sys_c1 
+	
+	
+	
+	# correlations can also be added from a different file
+	# please not that this line has to start with # ! FILE (without the blanks)
+	# the file needs to be in the same directory as this config file
+	#!FILE  =  extra_correlations.txt
+	
+	
+[end correlations]
+
+
+[uncertainty impacts]
+
+    # This block defines individual uncertainties or groups of uncertainties that should be evaluated 
+    # with respect to their impact on the final combination results.
+    # The procedure applied here is to fix the values under question and evaluate the difference in  
+    # quadrature w.r.t. the uncertainty on the combined results.
+    # The resulting table of uncertainties does not represent independent uncertainty groups
+    # and serves as illustration, only.
+    
+    a_unc = sys_a1 + sys_a2 + sys_a3
+    b_unc = sys_b1 + sys_b2 + sys_b3
+
+[end uncertainty impacts]
+
+
+
+
+
+
+
+
+
