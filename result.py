@@ -502,6 +502,15 @@ def to_dict(result: CombinationResult) -> dict:
     combined_covariance = np.asarray(result.cov_full)[nsys:, nsys:]
     combined_correlation = np.asarray(result.corr_full)[nsys:, nsys:]
     total_syst_covariance = combined_covariance - np.asarray(result.stat_only_covariance)
+    # Cross-covariance between combined observables and nuisances, Cov(x_b, nu_i),
+    # shape (nest, nsys), from the post-fit covariance block. This is the sole
+    # ingredient a downstream fit needs for genuine additive "global impacts"
+    # (arXiv:2307.04007): for a POI mu = w·x, the global impact of nuisance i is
+    # dm_i = Cov(mu, nu_i) = w·x_sys_cov[:, i], and sum_i dm_i^2 is exactly the
+    # global-impacts systematic variance (columns are additive by construction).
+    # NB this is a DIFFERENT decomposition from total_syst_covariance (the
+    # freeze/conditional method) — they need not agree; see the paper.
+    x_sys_cov = np.asarray(result.cov_full)[nsys:, :nsys]
 
     return {
         "combined_names": list(result.combined_names),
@@ -517,8 +526,14 @@ def to_dict(result: CombinationResult) -> dict:
         "converged": bool(result.converged),
         "normalised": bool(result.normalised),
         "sys_names": list(result.sys_names),
+        "sys_group": list(result.sys_group_labels),
         "pulls": np.asarray(result.pulls),
         "constraints": np.asarray(result.constraints),
+        "x_sys_cov": x_sys_cov,
+        # Prior precision inv_C (nsys x nsys); the correct global-impacts systematic
+        # variance is g^T inv_C g (g_i = Cov(POI, nu_i)), which reduces to g^T g only
+        # for independent unit priors. Needed to avoid double-counting correlated priors.
+        "prior_inv_cov": np.asarray(result.prior_inv_cov),
         "stat_only_covariance": np.asarray(result.stat_only_covariance),
         "total_syst_covariance": total_syst_covariance,
         "total_syst_impact_up": np.asarray(result.total_syst_impact_up),

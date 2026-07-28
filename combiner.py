@@ -104,6 +104,20 @@ class CombinationResult:
     # (nest × nest). Printed as [covariance matrix for merged impacts].
     impact_cov_groups: dict[str, np.ndarray] = field(default_factory=dict)
 
+    # Group label of each nuisance (parallel to sys_names), from the user's
+    # [uncertainty impacts] groups; "ungrouped" for nuisances in no group.
+    # Used by the downstream global-impacts breakdown to bucket per-nuisance
+    # global impacts (dm_i = Cov(POI, nu_i)) into additive per-group quadrature
+    # sums. A nuisance appearing in several groups takes the first match.
+    sys_group_labels: list[str] = field(default_factory=list)
+
+    # Prior inverse-covariance (precision) of the nuisances, inv_C (nsys x nsys),
+    # exactly as used in the chi2 prior term lambda^T inv_C lambda. The downstream
+    # global-impacts systematic variance is g^T inv_C g with g_i = Cov(POI, nu_i)
+    # (identity for independent unit priors; off-diagonal for correlated priors, e.g.
+    # cross-experiment correlations, where g^T g alone would double-count).
+    prior_inv_cov: np.ndarray = field(default_factory=lambda: np.zeros((0, 0)))
+
     # Best-fit full parameter vector
     pars_best: np.ndarray = field(default_factory=lambda: np.zeros(0))
     nsys: int = 0
@@ -294,7 +308,7 @@ class Combiner:
         quadratic_fast_path = responses_symmetric and all_absolute and not self.use_pearson
 
         # 5. Initial parameter vector
-        x0 = self._initial_params(setups, nsys, nest)
+        x0 = self._initial_params(setups, nsys, nest, combined_names)
 
         # 5b. Bounds (opt-in, --nonneg-combined): only the nest combined-value
         # parameters get a physical floor at 0; the nsys nuisance parameters
@@ -534,6 +548,14 @@ class Combiner:
             np.fill_diagonal(corr_full, 1.0)
             self._vtime("differential normalisation", t0)
 
+        # Map each nuisance to its user-defined [uncertainty impacts] group
+        # (parallel to all_sys_names). First match wins; "ungrouped" otherwise.
+        _name_to_group = {}
+        for _label, _members in cfg.impact_groups.items():
+            for _m in _members:
+                _name_to_group.setdefault(_m, _label)
+        sys_group_labels = [_name_to_group.get(n, "ungrouped") for n in all_sys_names]
+
         self._vtime("total", t_total)
 
         return CombinationResult(
@@ -556,6 +578,8 @@ class Combiner:
             pre_sys_corr=pre_sys_corr,
             impact_groups=impact_groups,
             impact_cov_groups=impact_cov_groups,
+            sys_group_labels=sys_group_labels,
+            prior_inv_cov=np.asarray(inv_C),
             pars_best=np.array(pars_best),
             nsys=nsys,
             nest=nest,
@@ -728,7 +752,11 @@ class Combiner:
                 ia = name_to_idx.get(sr.name_a)
                 ib = name_to_idx.get(sr.name_b)
                 if ia is None or ib is None:
-                    continue
+                    missing = sr.name_a if ia is None else sr.name_b
+                    raise ValueError(
+                        f"[correlations] entry ({sr.name_a!r}, {sr.name_b!r}) refers to "
+                        f"unknown systematic {missing!r} (not in all_sys_names)"
+                    )
                 rho = sr.nominal
                 C[ia, ib] = rho
                 C[ib, ia] = rho
@@ -742,6 +770,7 @@ class Combiner:
         setups: list[MeasurementSetup],
         nsys: int,
         nest: int,
+        combined_names: list[str],
     ) -> np.ndarray:
         """
         Start from: lambda = 0 for all systematics,
@@ -763,7 +792,10 @@ class Combiner:
             if comb_cnt[i] > 0:
                 x0[nsys + i] = comb_sum[i] / comb_cnt[i]
             else:
-                x0[nsys + i] = 1.0  # fallback
+                raise ValueError(
+                    f"observable {combined_names[i]!r} has no contributing estimates "
+                    f"(declared in [observables] but no measurement lists it)"
+                )
 
         return x0
 
@@ -1266,10 +1298,18 @@ def _nearest_positive_definite(
     eps = 1e-8 * max(1.0, max_abs_eigval)
     noise_tol = 1e-10 * max(1.0, max_abs_eigval)
 
-    if min_eigval >= -noise_tol:
-        return A  # already PD within floating-point tolerance
+    if min_eigval >= eps:
+        return A  # already comfortably positive-definite / invertible
 
     n_neg = int(np.sum(eigvals < -noise_tol))
+    if n_neg > 0:
+        eig_desc = f"{n_neg} negative eigenvalue(s), smallest λ={min_eigval:.4g}"
+    else:
+        eig_desc = (
+            f"smallest eigenvalue λ={min_eigval:.4g} is below the invertibility "
+            f"floor (rank-deficient, e.g. an exact ±1 correlation between two "
+            f"systematics)"
+        )
 
     if method == "clip":
         eigvals_full, eigvecs = np.linalg.eigh(A)
@@ -1305,7 +1345,7 @@ def _nearest_positive_definite(
 
     warnings.warn(
         f"Prior correlation matrix is not positive-definite: "
-        f"{n_neg} negative eigenvalue(s), smallest λ={min_eigval:.4g}. "
+        f"{eig_desc}. "
         f"Regularised via {method_msg}. "
         f"Off-diagonal change — max |Δρ|={max_change:.4g}, RMS |Δρ|={rms_change:.4g}.",
         stacklevel=3,
