@@ -36,3 +36,7 @@ jax_cache/
 
 # Reference documentation, not part of the package
 documentation.pdf
+
+# Run outputs, not source
+out/
+*.log
