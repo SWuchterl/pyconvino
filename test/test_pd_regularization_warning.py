@@ -19,7 +19,7 @@ import warnings
 
 import numpy as np
 
-from convino_jax.combiner import _nearest_positive_definite
+from pyconvino.combiner import _nearest_positive_definite
 
 
 NON_PD = np.array([

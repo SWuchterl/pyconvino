@@ -28,9 +28,9 @@ import unittest
 import jax
 import numpy as np
 
-from convino_jax.combiner import Combiner
-from convino_jax.measurement import MeasurementSetup
-from convino_jax.objective import make_chi2
+from pyconvino.combiner import Combiner
+from pyconvino.measurement import MeasurementSetup
+from pyconvino.objective import make_chi2
 
 jax.config.update("jax_enable_x64", True)
 

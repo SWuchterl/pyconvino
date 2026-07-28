@@ -13,7 +13,7 @@ import unittest
 
 import numpy as np
 
-from convino_jax.combiner import Combiner
+from pyconvino.combiner import Combiner
 
 from .helpers import config_path
 
@@ -51,14 +51,14 @@ class NoImpactsTest(unittest.TestCase):
         self.assertTrue(np.all(np.isnan(self.skipped.total_syst_impact_down)))
 
     def test_to_dict_does_not_crash_on_nan_placeholders(self):
-        from convino_jax.result import to_dict
+        from pyconvino.result import to_dict
 
         d = to_dict(self.skipped)
         self.assertEqual(d["total_syst_covariance"].shape, (self.skipped.nest,) * 2)
         self.assertTrue(np.all(np.isnan(d["total_syst_covariance"])))
 
     def test_format_result_skips_impact_sections(self):
-        from convino_jax.result import format_result
+        from pyconvino.result import format_result
 
         text = format_result(self.skipped)
         self.assertNotIn("[impact table]", text)

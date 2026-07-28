@@ -16,7 +16,7 @@ from pathlib import Path
 
 import numpy as np
 
-from convino_jax.combiner import Combiner
+from pyconvino.combiner import Combiner
 
 _MEASUREMENT_TEMPLATE = """\
 [hessian]

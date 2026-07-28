@@ -4,12 +4,21 @@ from __future__ import annotations
 
 import argparse
 import sys
+from importlib.metadata import PackageNotFoundError, version as _pkg_version
+
+try:
+    __version__ = _pkg_version("pyconvino")
+except PackageNotFoundError:
+    __version__ = "unknown"
 
 
 def main():
     parser = argparse.ArgumentParser(
         prog="convino",
         description="Convino: combination of physics measurements (Python/JAX port)",
+    )
+    parser.add_argument(
+        "--version", action="version", version=f"convino {__version__}"
     )
     parser.add_argument("config", help="Path to the config file")
     parser.add_argument(
@@ -68,6 +77,11 @@ def main():
              "eigenvalues to eps and renormalises; 'higham' finds the nearest "
              "correlation matrix in Frobenius norm via alternating projections"
     )
+    parser.add_argument(
+        "--nonneg-combined", action="store_true", dest="nonneg_combined",
+        help="Constrain combined observables to be >= 0 (off by default: not "
+             "every combined quantity is a non-negative cross section)"
+    )
 
     args = parser.parse_args()
 
@@ -95,6 +109,7 @@ def main():
             impacts_only=impacts_only,
             verbose=args.verbose,
             pd_reg_method=args.pd_reg_method,
+            nonneg_combined=args.nonneg_combined,
         )
         result = combiner.combine()
         write_result(result, prefix=args.prefix)

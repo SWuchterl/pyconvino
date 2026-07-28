@@ -10,7 +10,7 @@ import contextlib
 import io
 import unittest
 
-from convino_jax.combiner import Combiner
+from pyconvino.combiner import Combiner
 
 from .helpers import config_path
 

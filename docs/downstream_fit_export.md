@@ -18,7 +18,7 @@ convino ConvinoSetups/Combination_ATLAS813CMS13_corrV2/rho_config.txt \
 Or from Python:
 
 ```python
-from convino_jax import Combiner, export_npz
+from pyconvino import Combiner, export_npz
 
 result = Combiner.from_config("ConvinoSetups/Combination_ATLAS813CMS13_corrV2/rho_config.txt").combine()
 export_npz(result, "out/combo_result.npz")

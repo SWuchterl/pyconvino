@@ -18,7 +18,7 @@ from pathlib import Path
 
 import numpy as np
 
-# Repository root (the convino_jax package directory == this file's parent's parent)
+# Repository root (the pyconvino package directory == this file's parent's parent)
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SETUPS_DIR = REPO_ROOT / "ConvinoSetups"
 GOLDEN_DIR = Path(__file__).resolve().parent / "golden"
@@ -143,7 +143,7 @@ def make_fixture_result():
     """
     from scipy.stats import chi2 as chi2_dist
 
-    from convino_jax import CombinationResult
+    from pyconvino import CombinationResult
 
     sys_names = ["sysA", "sysB", "sysC"]
     comb_names = ["obs1", "obs2"]
@@ -212,7 +212,7 @@ def compute_arrays(name: str) -> dict[str, np.ndarray]:
     For SLOW_SETUPS the large derived matrices are dropped to keep the
     committed golden small.
     """
-    from convino_jax import Combiner
+    from pyconvino import Combiner
 
     result = Combiner.from_config(str(config_path(name))).combine()
     arrays = result_to_arrays(result)

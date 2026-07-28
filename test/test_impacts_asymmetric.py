@@ -46,8 +46,8 @@ import os
 import re
 import unittest
 
-from convino_jax.combiner import Combiner
-from convino_jax.result import format_result
+from pyconvino.combiner import Combiner
+from pyconvino.result import format_result
 
 _RUN_SLOW = bool(os.environ.get("CONVINO_SLOW_TESTS"))
 

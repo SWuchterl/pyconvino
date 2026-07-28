@@ -21,8 +21,8 @@ import unittest
 
 import numpy as np
 
-from convino_jax.measurement import MeasurementSetup
-from convino_jax.objective import make_chi2
+from pyconvino.measurement import MeasurementSetup
+from pyconvino.objective import make_chi2
 
 
 def _make_setup(sys_types: list[str]) -> MeasurementSetup:
