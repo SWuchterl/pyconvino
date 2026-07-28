@@ -1,4 +1,4 @@
-"""convino_jax — Python/JAX port of the Convino combination tool."""
+"""pyconvino — Python/JAX port of the Convino combination tool."""
 
 from .combiner import Combiner, CombinationResult
 from .parser import parse_config_file, parse_measurement_file

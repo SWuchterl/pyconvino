@@ -1,4 +1,8 @@
-# convino_jax
+<p align="center">
+  <img src="logo_pyconvino.png" alt="pyconvino logo" width="220">
+</p>
+
+# pyconvino
 
 A Python/JAX port of [Convino](https://github.com/jkiesele/Convino) — a tool for
 combining physics measurements with correlated systematic uncertainties. This
@@ -22,7 +26,7 @@ convino path/to/rho_config.txt --prefix /tmp/mycombo
 # -> writes /tmp/mycombo_result.txt
 
 # or, without installing the console script:
-python -m convino_jax.cli path/to/rho_config.txt --prefix /tmp/mycombo
+python -m pyconvino.cli path/to/rho_config.txt --prefix /tmp/mycombo
 ```
 
 Options:
@@ -38,7 +42,9 @@ Options:
 | `--scan-steps N` | Number of points per correlation-scan group (default: 6). |
 | `--verbose`  | Print per-phase timing checkpoints (parse, chi2 build, minimize, post-fit, impacts, total) to stderr. |
 | `--pd-reg-method {shift,clip,higham}` | Strategy for regularising a non-positive-definite prior correlation matrix (default: `shift`). A `UserWarning` is always emitted with diagnostics (number of negative eigenvalues, λ_min, max/RMS off-diagonal change). See below. |
+| `--nonneg-combined` | Constrain combined observables to be ≥ 0 (off by default — not every combined quantity is a non-negative cross section). |
 | `--debug`    | Print a full traceback on error. |
+| `--version`  | Print the installed version and exit. |
 
 ### Prior correlation matrix regularisation
 
@@ -63,10 +69,21 @@ Input files use the original Convino text format (measurement files with
 `[systematics]` blocks, and a config file with `[observables]` /
 `[correlations]` / `[uncertainty impacts]`).
 
+### Differential normalisation
+
+If a config's `[global]` block sets both `isDifferential = true` and
+`normalise = true`, the combined bin values are renormalised to fractions of
+their sum after the fit (Monte Carlo error propagation, ports the C++
+`normaliser.cpp` algorithm) — `combined_values`/`combined_err_up/down` and the
+combined-observable block of `cov_full`/`corr_full` then describe shape
+(fractions summing to 1), not the original absolute bin values.
+`CombinationResult.normalised` (also in `to_dict()`/export) tells you whether
+this happened. No effect otherwise (default `normalise = false`).
+
 ## Library API
 
 ```python
-from convino_jax import Combiner, write_result
+from pyconvino import Combiner, write_result
 
 result = Combiner.from_config("rho_config.txt").combine()
 write_result(result, prefix="mycombo")
@@ -79,8 +96,9 @@ write_result(result, prefix="mycombo")
 - `impact_per_systematic`, `cov_per_systematic` — per-systematic leave-one-out breakdown (unsigned quadrature impacts and frozen covariances).
 - `impact_matrix` — signed linear response matrix of shape `(nest, nsys)`: column `i` is the shift in each combined observable for a +1σ variation of nuisance `i` (ordered as `sys_names`). Derived from the post-fit Hessian cross-block `A = −inv(H_xx) @ H_xt`; satisfies `A @ A.T = total_syst_covariance` for independent nuisances. Suitable for a nuisance-parameter downstream fit `χ² = (r − A θ)ᵀ C_stat⁻¹ (r − A θ) + ‖θ‖²`.
 - `pull_per_group_mean`, `pull_per_group_norm` — impact-weighted mean nuisance pull per user-defined `[uncertainty impacts]` group. Two weighting conventions: `mean` uses the per-bin average `|impact[b]|` as weight; `norm` uses the Euclidean norm. Only populated when `compute_impacts=True` and at least one group is defined.
+- `normalised` — whether differential bin-renormalisation ran (see above); `False` unless the config sets both `isDifferential` and `normalise`.
 
-All fields are exported via `to_dict()` / `export_npz()` / `export_json()` (`convino_jax.result`). For scanning a correlation assumption instead of a single fit, use `Combiner.scan_correlations()`.
+All fields are exported via `to_dict()` / `export_npz()` / `export_json()` (`pyconvino.result`). For scanning a correlation assumption instead of a single fit, use `Combiner.scan_correlations()`.
 
 ## Tests
 
@@ -90,10 +108,10 @@ combinations end-to-end and compare to stored golden snapshots
 and fast unit tests for the output-path handling.
 
 ```bash
-python -m unittest discover -t . -s test       # fast suite (~4 s)
+python -m unittest discover -t . -s test       # fast suite (~12 s)
 ```
 
-Two slow tests are skipped by default — enable them with:
+Three slow tests are skipped by default — enable them with:
 
 ```bash
 CONVINO_SLOW_TESTS=1 python -m unittest discover -t . -s test
@@ -101,6 +119,7 @@ CONVINO_SLOW_TESTS=1 python -m unittest discover -t . -s test
 
 - `corrV2` (~25 s): full ATLAS 8+13 / CMS 13 TeV combination; central values validated once against the original C++ Convino.
 - `test_pd_regularization_extreme`: runs the `Combination_ATLAS813CMS13_corrExtremeTest` setup with all three `--pd-reg-method` strategies and prints a side-by-side comparison table.
+- `test_impacts_asymmetric` (~45 s): the paper-example combination with a genuinely asymmetric systematic, checked against real C++ Convino reference numbers (see `docs/paper_benchmark_crosscheck.md`).
 
 If you change the numeric or formatted output *intentionally*, regenerate and
 commit the goldens:

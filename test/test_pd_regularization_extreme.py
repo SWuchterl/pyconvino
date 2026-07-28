@@ -38,7 +38,7 @@ class PDRegExtremeComparisonTest(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        from convino_jax import Combiner
+        from pyconvino import Combiner
 
         cls.results = {}
         cls.warnings = {}

@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import unittest
 
-from convino_jax import format_result
+from pyconvino import format_result
 
 from .helpers import FORMATTER_GOLDEN, make_fixture_result
 

@@ -175,6 +175,7 @@ class Combiner:
         impacts_only: Optional[list[str]] = None,
         verbose: bool = False,
         pd_reg_method: str = "shift",
+        nonneg_combined: bool = False,
     ):
         self.config = config
         self.meas_data = meas_data
@@ -184,6 +185,7 @@ class Combiner:
         self.impacts_only = impacts_only
         self.verbose = verbose
         self.pd_reg_method = pd_reg_method
+        self.nonneg_combined = nonneg_combined
         if impacts_only is not None:
             unknown = sorted(set(impacts_only) - set(config.impact_groups))
             if unknown:
@@ -202,6 +204,7 @@ class Combiner:
         impacts_only: Optional[list[str]] = None,
         verbose: bool = False,
         pd_reg_method: str = "shift",
+        nonneg_combined: bool = False,
     ) -> "Combiner":
         t0 = time.perf_counter()
         cfg = parse_config_file(config_path)
@@ -216,6 +219,7 @@ class Combiner:
             cfg, meas_data, use_pearson=use_pearson, prefix=prefix,
             compute_impacts=compute_impacts, impacts_only=impacts_only,
             verbose=verbose, pd_reg_method=pd_reg_method,
+            nonneg_combined=nonneg_combined,
         )
 
     def _vtime(self, label: str, t0: float) -> None:
@@ -292,6 +296,15 @@ class Combiner:
         # 5. Initial parameter vector
         x0 = self._initial_params(setups, nsys, nest)
 
+        # 5b. Bounds (opt-in, --nonneg-combined): only the nest combined-value
+        # parameters get a physical floor at 0; the nsys nuisance parameters
+        # stay unbounded (Gaussian priors have no physical bound). Off by
+        # default since not every combined quantity is a non-negative cross
+        # section (e.g. asymmetries/ratios).
+        bounds = None
+        if self.nonneg_combined:
+            bounds = [(None, None)] * nsys + [(0.0, None)] * nest
+
         # 6. Minimization: exact one-step solve for the quadratic case, or the
         # robust two-pass L-BFGS-B (with a Newton polish) otherwise. This is
         # also where the jitted value_and_grad_fn/hess_fn first get XLA-
@@ -299,7 +312,8 @@ class Combiner:
         # includes that one-time compile cost, not just optimizer iterations.
         t0 = time.perf_counter()
         pars_best, chi2_min, converged = self._minimize(
-            value_and_grad_fn, x0, hess_fn=hess_fn, quadratic_fast_path=quadratic_fast_path
+            value_and_grad_fn, x0, hess_fn=hess_fn,
+            quadratic_fast_path=quadratic_fast_path, bounds=bounds,
         )
         self._vtime("minimize", t0)
 
@@ -616,6 +630,7 @@ class Combiner:
                         cfg_step, self.meas_data, use_pearson=self.use_pearson,
                         prefix=self.prefix, compute_impacts=compute_impacts,
                         pd_reg_method=self.pd_reg_method,
+                        nonneg_combined=self.nonneg_combined,
                     ).combine()
                 )
                 self._vtime(f"scan '{scan.name}' step {step + 1}/{n_steps}", t0)
@@ -752,8 +767,18 @@ class Combiner:
 
         return x0
 
+    @staticmethod
+    def _bounds_violated(vec: np.ndarray, bounds) -> bool:
+        """True if any component of `vec` falls outside its (lo, hi) bound."""
+        if bounds is None:
+            return False
+        return any(
+            (lo is not None and vec[i] < lo) or (hi is not None and vec[i] > hi)
+            for i, (lo, hi) in enumerate(bounds)
+        )
+
     def _minimize(self, value_and_grad_fn, x0: np.ndarray, hess_fn=None,
-                  quadratic_fast_path: bool = False):
+                  quadratic_fast_path: bool = False, bounds=None):
         """
         Find the chi2 minimum.
 
@@ -776,15 +801,20 @@ class Combiner:
             p_min = p0 - solve(H, grad(p0))
 
         No iterative optimizer is needed, and the result is exact (up to
-        floating point), so `converged` is unconditionally True.
+        floating point), so `converged` is unconditionally True. This shortcut
+        has no notion of bounds, so if `bounds` is given and the unconstrained
+        solve lands outside them, it is discarded and control falls through to
+        the general (bounded) path below instead.
 
-        General path (otherwise): the existing robust two-pass L-BFGS-B,
-        followed by a single Newton-correction step using the exact Hessian
-        evaluated at the L-BFGS-B solution. L-BFGS-B already lands inside the
-        basin where Newton's quadratic convergence applies, so this step is
-        safe and cheap; it just buys back precision (closer to machine
-        epsilon) on top of the validated L-BFGS-B result, which is otherwise
-        left untouched.
+        General path (otherwise, or as the fast-path's bounded fallback): the
+        existing robust two-pass L-BFGS-B, followed by a single
+        Newton-correction step using the exact Hessian evaluated at the
+        L-BFGS-B solution. L-BFGS-B already lands inside the basin where
+        Newton's quadratic convergence applies, so this step is safe and
+        cheap; it just buys back precision (closer to machine epsilon) on top
+        of the validated L-BFGS-B result, which is otherwise left untouched.
+        The Newton step itself is also an unconstrained linear solve, so it is
+        only accepted when `bounds` is respected too.
         """
         if quadratic_fast_path:
             assert hess_fn is not None, "quadratic_fast_path requires hess_fn"
@@ -794,11 +824,14 @@ class Combiner:
             g0 = np.array(g0)
             step = np.linalg.solve(H, g0)
             p_min = np.array(x0, dtype=np.float64) - step
-            p_min_j = jnp.array(p_min, dtype=jnp.float64)
-            chi2_min, _ = value_and_grad_fn(p_min_j)
-            # Exact linear solve, not an iterative outcome that can fail to
-            # converge.
-            return p_min_j, float(chi2_min), True
+            if not self._bounds_violated(p_min, bounds):
+                p_min_j = jnp.array(p_min, dtype=jnp.float64)
+                chi2_min, _ = value_and_grad_fn(p_min_j)
+                # Exact linear solve, not an iterative outcome that can fail
+                # to converge.
+                return p_min_j, float(chi2_min), True
+            # Unconstrained minimum violates bounds: fall through to the
+            # general bounded L-BFGS-B path below.
 
         def _fun_and_grad(pars):
             v, g = value_and_grad_fn(jnp.array(pars, dtype=jnp.float64))
@@ -810,6 +843,7 @@ class Combiner:
             x0,
             method="L-BFGS-B",
             jac=True,
+            bounds=bounds,
             options={"maxiter": 2000, "ftol": 1e-9, "gtol": 1e-5},
         )
 
@@ -819,6 +853,7 @@ class Combiner:
             res1.x,
             method="L-BFGS-B",
             jac=True,
+            bounds=bounds,
             options={"maxiter": 5000, "ftol": 1e-15, "gtol": 1e-9},
         )
 
@@ -852,7 +887,11 @@ class Combiner:
                 p_polished_j = jnp.array(p_polished, dtype=jnp.float64)
                 chi2_polished, g_polished = value_and_grad_fn(p_polished_j)
                 chi2_polished = float(chi2_polished)
-                if np.all(np.isfinite(p_polished)) and chi2_polished <= fun_best:
+                if (
+                    np.all(np.isfinite(p_polished))
+                    and chi2_polished <= fun_best
+                    and not self._bounds_violated(p_polished, bounds)
+                ):
                     gnorm_polished = float(np.linalg.norm(np.array(g_polished)))
                     # Only accept if it's at least as good in gradient norm
                     # too (chi2 at a quadratic-ish minimum can be flat enough

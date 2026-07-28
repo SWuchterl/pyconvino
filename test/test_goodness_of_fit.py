@@ -19,7 +19,7 @@ from pathlib import Path
 
 from scipy.stats import chi2 as chi2_dist
 
-from convino_jax.combiner import Combiner
+from pyconvino.combiner import Combiner
 
 _MEASUREMENT_TEMPLATE = """\
 [hessian]

@@ -27,7 +27,7 @@ from .helpers import (
 
 
 def _regen_formatter() -> None:
-    from convino_jax import format_result
+    from pyconvino import format_result
 
     FORMATTER_GOLDEN.write_text(format_result(make_fixture_result()), encoding="utf-8")
     print(f"wrote {FORMATTER_GOLDEN.name}")

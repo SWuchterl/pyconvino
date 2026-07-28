@@ -1,4 +1,4 @@
-# pyconvino (convino_jax) — Package & Output Reference
+# pyconvino — Package & Output Reference
 
 This document is a self-contained reference for what the package does and what
 every output it produces contains. It is written so that a new session (or a
@@ -9,7 +9,7 @@ to re-read the source.
 
 ## What the package does
 
-`convino_jax` is a Python/JAX port of
+`pyconvino` is a Python/JAX port of
 [Convino](https://github.com/jkiesele/Convino): a χ² combination tool for
 physics measurements with correlated systematic uncertainties. It takes as
 input a set of measurement files (each describing one experiment's estimates,
@@ -62,7 +62,7 @@ it was never finished in the C++ reference either.
 | `[observables]` | `estimate_name = combined_name` — maps measurement estimates to combined observable names |
 | `[correlations]` | `sys_name  nominal_rho  (& low : high)?` — cross-measurement correlation per systematic, optionally with a scan range |
 | `[uncertainty impacts]` | Named groups of systematics for merged impact reporting |
-| `[global]` | `isDifferential`, `normalise` flags |
+| `[global]` | `isDifferential`, `normalise` flags — when both are `true`, the combined bin values are renormalised to fractions of their sum after the fit (see "Differential normalisation" below) |
 | `#!FILE = path` | Include directive inside `[correlations]` |
 
 ---
@@ -94,8 +94,10 @@ CLI flags:
 | `--scan-steps N` | Points per scan group (default 6) |
 | `--verbose` | Per-phase timing to stderr |
 | `--pd-reg-method {shift,clip,higham}` | How to fix a non-positive-definite prior correlation matrix (default `shift`; see below) |
+| `--nonneg-combined` | Constrain combined observables to be ≥ 0 (off by default; see below) |
 | `--pearson` | Pearson χ² instead of Neyman |
 | `--debug` | Full traceback on error |
+| `--version` | Print the installed version and exit |
 
 ### Prior correlation matrix regularisation (`--pd-reg-method`)
 
@@ -125,6 +127,36 @@ prior; the prior only constrains how far the nuisance parameters are pulled.
 `shift` is the default because its uniform scaling is the easiest to
 communicate to collaborators; `higham` is available when a minimum-perturbation
 argument is needed.
+
+### Non-negative combined observables (`--nonneg-combined`)
+
+Off by default. When set, the `nest` combined-observable parameters are
+floored at 0 in the minimiser (the `nsys` nuisance parameters stay unbounded —
+Gaussian priors have no physical floor). Implementation notes:
+
+- The quadratic fast path (an unconstrained one-shot linear solve, see
+  "What the package does" above) has no notion of bounds: if its solution
+  would violate the floor, it is discarded and the general bounded
+  two-pass L-BFGS-B path is used instead for that fit.
+- The Newton-polish step layered on top of L-BFGS-B is likewise an
+  unconstrained linear solve, so it is only accepted when it still respects
+  the bound.
+- Has no effect on a setup whose unconstrained minimum is already
+  non-negative (the common case).
+
+### Differential normalisation (`[global] isDifferential` / `normalise`)
+
+When a config's `[global]` block sets both `isDifferential = true` and
+`normalise = true`, `combine()`'s final step renormalises the combined bin
+values to fractions of their sum (Monte Carlo error propagation: draw
+`N(combined_vals, cov)`, divide each sample by its own sum, take the empirical
+covariance of the deviations from the nominal fraction — ports the C++
+`normaliser.cpp` algorithm). After this step, `combined_values`,
+`combined_err_up`/`down`, and the combined-observable block of
+`cov_full`/`corr_full` describe shape (fractions summing to 1), not the
+original absolute bin values. `CombinationResult.normalised` (also exported)
+is `True` when this ran. No existing `ConvinoSetups` fixture sets these flags,
+so this is a strict no-op for all of them.
 
 ---
 
@@ -285,6 +317,7 @@ with open("myrun_result.json") as f:
 | `total_syst_covariance` | float64 | `(nest, nest)` | `combined_covariance − stat_only_covariance`. **Do not** add this to `combined_covariance` — that would double-count. |
 | `total_syst_impact_up` | float64 | `(nest,)` | Total systematic impact upward per observable (quadrature: `sqrt(err_up² − stat_err_up²)`) |
 | `total_syst_impact_down` | float64 | `(nest,)` | Total systematic impact downward per observable |
+| `normalised` | bool | scalar | Whether differential bin-renormalisation ran (see "Differential normalisation" above); `False` unless the config sets both `isDifferential` and `normalise` |
 
 ### Nested: `impact_groups`
 
@@ -357,8 +390,8 @@ In `.npz` flat keys: `<group>__scan_values`, `<group>__step0__combined_values`, 
 ## Python library API (quick reference)
 
 ```python
-from convino_jax import Combiner, to_dict, export_npz, export_json
-from convino_jax.result import scan_results_to_dict, export_scan_npz
+from pyconvino import Combiner, to_dict, export_npz, export_json
+from pyconvino.result import scan_results_to_dict, export_scan_npz
 
 # Single combination
 result = Combiner.from_config("rho_config.txt",
@@ -384,7 +417,7 @@ sd = scan_results_to_dict(scan)    # nested dict
 
 ### Key types
 
-- `Combiner.from_config(path, *, use_pearson, prefix, compute_impacts, impacts_only, verbose)`
+- `Combiner.from_config(path, *, use_pearson, prefix, compute_impacts, impacts_only, verbose, pd_reg_method, nonneg_combined)`
 - `Combiner.combine() → CombinationResult`
 - `Combiner.scan_correlations(n_steps, compute_impacts) → ScanResults`
 - `CombinationResult` — dataclass, all fields described above

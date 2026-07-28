@@ -8,7 +8,7 @@ ATLAS/CMS `ConvinoSetups` (`test/test_regression.py`) had been validated
 against C++ before this.
 
 **Method:** ran the compiled C++ binary (`old/Convino/convino`, Pearson chi2 —
-the default) and `python -m convino_jax.cli --pearson` on the identical input
+the default) and `python -m pyconvino.cli --pearson` on the identical input
 files, diffed `result.txt` section by section.
 
 ## Central fit — matches
@@ -57,7 +57,7 @@ response in the combination is asymmetric (`sys_d3`'s `(+5-3)`).
   (which match C++ to <0.1%), the closed-form shortcut itself disagrees with
   C++ by ~2%; profile-likelihood is what matches. Gating the *whole*
   combination into MINOS/profile mode once any one parameter is asymmetric
-  mirrors C++ (`combiner.py:331`), which always runs MINOS regardless of which
+  mirrors C++ (`combiner.py:380`), which always runs MINOS regardless of which
   parameter is asymmetric.
 - **`sys_a3`–`sys_e3` have ~zero true impact.** Freezing `sys_d3` and
   re-minimizing moves chi2 by only `3.55e-7`; the frozen error matches the
@@ -79,16 +79,16 @@ response in the combination is asymmetric (`sys_d3`'s `(+5-3)`).
   than the ~1e-7 signal being resolved. Shrinking it further needs either
   chi2-scale-aware absolute convergence criteria (costly — see Finding 1
   below) or per-parameter (not combination-wide) symmetric/asymmetric
-  handling (`responses_symmetric` is a single flag, `combiner.py:258`).
+  handling (`responses_symmetric` is a single flag, `combiner.py:275`).
   Neither exists today. Doesn't affect any physics conclusion — the affected
   impacts are negligible either way.
 
 ## Finding 1 — asymmetric-impact path: fixed (both halves)
 
-`Combiner._compute_impacts` (`combiner.py:933`) slices the post-fit Hessian
+`Combiner._compute_impacts` (`combiner.py:1014`) slices the post-fit Hessian
 for symmetric responses (fast, exact); for asymmetric responses it instead
 refits + profile-scans (`_minimize_frozen`/`_profile_error`,
-`combiner.py:828-931`) **per impact group, per combined observable**. On this
+`combiner.py:909-1013`) **per impact group, per combined observable**. On this
 tiny example (2 observables, 12 systematics) it originally took ~4-9 min wall
 time for impacts alone across repeated runs (vs. <30s for everything else),
 and over 45 min under CPU contention once — consistent with per-call JAX/XLA
@@ -107,13 +107,14 @@ correlation-based quantity the "simple impact table" actually reports; fixed
 by parsing `format_result()`'s text output directly, the same thing a user
 sees.
 
-**Performance half**: `combiner.py:250` used a plain, uncompiled `jax.grad`
+**Performance half**: this path originally used a plain, uncompiled `jax.grad`
 for this path specifically to protect the impact quadrature's precision
 (`objective.make_chi2` already returns a jitted `chi2_fn`, but the *fused*
 jitted `value_and_grad_fn` reassociates floats at the ~1e-14 level, which
 `sqrt(err_full^2 - err_frozen^2)` can amplify). Implemented the proposed fix:
-a **separate**, non-fused `grad_search = jax.jit(jax.grad(chi2_fn))`, used
-only for the L-BFGS-B/brentq search (`combiner.py:269`) — safe because
+a **separate**, non-fused `grad_search = jax.jit(jax.grad(chi2_fn))`
+(`combiner.py:267`), used only for the L-BFGS-B/brentq search
+(`combiner.py:382-383` and the two `_compute_impacts` call sites) — safe because
 L-BFGS-B's own stopping rule (`gtol=1e-8`) is far looser than jit's
 reassociation noise, so it converges to the same point either way, just
 without paying eager dispatch overhead per op per call.

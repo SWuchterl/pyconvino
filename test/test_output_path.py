@@ -11,7 +11,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from convino_jax.result import output_path_for, prepare_output_path
+from pyconvino.result import output_path_for, prepare_output_path
 
 
 class OutputPathTest(unittest.TestCase):
