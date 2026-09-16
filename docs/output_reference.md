@@ -46,10 +46,11 @@ Plain-text files with named blocks:
 | Block | Content |
 |-------|---------|
 | `[estimates]` | Central values of the observables in this measurement |
-| `[systematics]` | One line per systematic: `name  type` where type ∈ `absolute`, `relative`, `lognormal`* |
+| `[systematics]` | One line per systematic: `name  type` where type ∈ `absolute`, `relative`, `lognormal`*, or `free` (a Hessian parameter the input fit did not constrain with a prior, e.g. a floating normalisation) |
 | `[hessian]` | Lower-triangular Hessian matrix (optional constraint column) |
 | `[correlation matrix]` | Alternative to hessian: lower-triangular correlation matrix + constraint column |
 | `[not fitted]` | Externalised (non-fitted) uncertainties table |
+| `[nuisance values]` | `name = value`: post-fit central values (pulls) of the Hessian nuisances from the input fit. Absent → 0, which is the original Convino approximation; see `mathematical_extensions.md` §11 |
 
 \* `lognormal` is parsed but raises `NotImplementedError` at chi2-build time —
 it was never finished in the C++ reference either.

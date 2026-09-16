@@ -19,16 +19,37 @@ Stored as: Lk_up[mu, i] = -ki[mu], Lk_down[mu, i] = +ki[mu]
 LM = M (the estimate × estimate block of H)
 
 LD (nHlamb × nHlamb):
-    LD = tildeC - kappa^T @ M^{-1} @ kappa - I
+    LD = tildeC - kappa^T @ M^{-1} @ kappa - diag(P)
     (derived from: LD[i,j] = tildeC[i,j]
                               - sum_{mu,nu} M[mu,nu]/2 * (Lk_symm[mu,i]*Lk_symm[nu,j]
                                                           + Lk_symm[nu,i]*Lk_symm[mu,j])
-                              - delta_{ij}
+                              - P_i delta_{ij}
      with Lk_symm[mu,i] = -ki[mu])
+
+P_i is the prior precision the input fit used for nuisance i: 1 for a
+unit-Gaussian constraint (default), 0 for a parameter tagged "free" in
+[systematics]. Subtracting it leaves the data-only Hessian H_d = H - diag(0,P);
+the prior is re-added once, globally, by the combiner.
+
+Nuisance central values ([nuisance values] block, lambda_hat, 0 if absent or
+if use_nuisance_values is False, which is the default = the C++ Convino form):
+the input's data-only likelihood is (theta - theta_d)^T H_d (theta - theta_d)
+with H_d theta_d = H theta_hat (stationarity of the input fit). Written in
+the objective's variables (see objective.py) this is
+
+    (d - x - k(lambda - lambda_hat))^T M (...) + (lambda - lambda_hat)^T LD (lambda - lambda_hat)
+    - 2 (lambda - lambda_hat)^T P lambda_hat + chi2_offset,
+
+    chi2_offset = lambda_hat^T P LD^+ P lambda_hat   (>= 0, zero at theta_d)
+
+so a standalone input is reproduced exactly (theta_hat, covariance H^-1) and
+its minimum chi2 is chi2_standalone = chi2_offset + lambda_hat^T P lambda_hat,
+the prior penalty the input fit already paid. Without lambda_hat (the original
+Convino form) the nuisances of a profiled input are silently re-centred at 0.
 
 Externalized systematics (from [not fitted]) extend Lk with user-supplied
 (up, down) pairs; LD is zero for their indices — their constraint comes
-entirely from the global prior.
+entirely from the global prior. They always have lambda_hat = 0, P = 1.
 
 For measurements without a Hessian (pure [not fitted]), LM is built from
 the stat uncertainties: LM[i,j] = corr[i,j] / (stat_i * stat_j),
@@ -61,8 +82,22 @@ class MeasurementSetup:
     est_global_idx: list[int] = field(default_factory=list)
     sys_global_idx: list[int] = field(default_factory=list)
 
+    lambda_hat: np.ndarray = None    # input post-fit nuisance values, (nlamb,); default 0
+    prior_diag: np.ndarray = None    # prior precision P_i of the input fit, (nlamb,); default 1
+    chi2_offset: float = 0.0         # lambda_hat^T P LD^+ P lambda_hat
+    chi2_standalone: float = 0.0     # chi2 of this input alone at its own best fit
 
-def setup_measurement(data: MeasurementFileData) -> MeasurementSetup:
+    def __post_init__(self):
+        nlamb = len(self.sys_names)
+        if self.lambda_hat is None:
+            self.lambda_hat = np.zeros(nlamb)
+        if self.prior_diag is None:
+            self.prior_diag = np.ones(nlamb)
+
+
+def setup_measurement(
+    data: MeasurementFileData, use_nuisance_values: bool = False
+) -> MeasurementSetup:
     """
     Build the LM/Lk/LD matrices from raw file data.
 
@@ -90,6 +125,17 @@ def setup_measurement(data: MeasurementFileData) -> MeasurementSetup:
     nHlamb = len(hess_sys_names)
     nest = len(all_est_names)
     nlamb = len(all_sys_names)
+
+    hess_sys_set = set(hess_sys_names)
+    for label, names in (("[nuisance values]", data.nuisance_values),
+                         ("free", data.prior_free)):
+        unknown = sorted(set(names) - hess_sys_set)
+        if unknown:
+            raise ValueError(
+                f"{data.path}: {label} entries {unknown} are not Hessian "
+                "systematics (only nuisances of the input fit can carry a "
+                "central value or be free)"
+            )
 
     x_meas = np.array([data.estimates[n] for n in all_est_names], dtype=float)
     stat_errs = np.array([data.stat_errors.get(n, 0.0) for n in all_est_names], dtype=float)
@@ -160,22 +206,41 @@ def setup_measurement(data: MeasurementFileData) -> MeasurementSetup:
     # ------------------------------------------------------------------
     # Build LD (residual systematic matrix, top-left nHlamb × nHlamb block)
     # ------------------------------------------------------------------
+    prior_diag = np.array(
+        [0.0 if n in data.prior_free else 1.0 for n in all_sys_names], dtype=float
+    )
+    nuis = data.nuisance_values if use_nuisance_values else {}
+    lambda_hat = np.array(
+        [nuis.get(n, 0.0) for n in all_sys_names], dtype=float
+    )
+
     LD = np.zeros((nlamb, nlamb))
     if nHlamb > 0:
-        # LD = tildeC - kappa^T @ TM @ kappa - I
+        # LD = tildeC - kappa^T @ TM @ kappa - diag(P)
         LD[:nHlamb, :nHlamb] = (
             tildeC
             - kappa.T @ TM @ kappa
-            - np.eye(nHlamb)
+            - np.diag(prior_diag[:nHlamb])
         )
 
     # Sanity check matching C++ diagnostic
     for i in range(nHlamb):
-        if LD[i, i] + 1.0 < 0:
+        if LD[i, i] + prior_diag[i] < 0:
             raise ValueError(
-                f"LD diagonal +1 < 0 at index {i} (sys={all_sys_names[i]}). "
+                f"LD diagonal +P < 0 at index {i} (sys={all_sys_names[i]}). "
                 "Check Hessian input."
             )
+
+    # Constant making the data-only term vanish at the input's unconstrained
+    # optimum (see module docstring). pinv: LD is singular along directions
+    # the data do not constrain, where P*lambda_hat is 0 anyway.
+    chi2_offset = 0.0
+    p_lam = prior_diag[:nHlamb] * lambda_hat[:nHlamb]
+    if nHlamb > 0 and np.any(p_lam):
+        chi2_offset = float(
+            p_lam @ np.linalg.pinv(LD[:nHlamb, :nHlamb], hermitian=True) @ p_lam
+        )
+    chi2_standalone = chi2_offset + float(lambda_hat @ (prior_diag * lambda_hat))
 
     # ------------------------------------------------------------------
     # Systematic types
@@ -194,4 +259,8 @@ def setup_measurement(data: MeasurementFileData) -> MeasurementSetup:
         est_names=all_est_names,
         sys_names=all_sys_names,
         sys_types=sys_types,
+        lambda_hat=lambda_hat,
+        prior_diag=prior_diag,
+        chi2_offset=chi2_offset,
+        chi2_standalone=chi2_standalone,
     )

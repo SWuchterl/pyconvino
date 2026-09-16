@@ -42,6 +42,7 @@ Options:
 | `--scan-steps N` | Number of points per correlation-scan group (default: 6). |
 | `--verbose`  | Print per-phase timing checkpoints (parse, chi2 build, minimize, post-fit, impacts, total) to stderr. |
 | `--pd-reg-method {shift,clip,higham}` | Strategy for regularising a non-positive-definite prior correlation matrix (default: `shift`). A `UserWarning` is always emitted with diagnostics (number of negative eigenvalues, λ_min, max/RMS off-diagonal change). See below. |
+| `--use-nuisance-values` | Use each input's `[nuisance values]` block, i.e. the post-fit central values of a profiled input's nuisances. **Off by default**, which reproduces the original C++ Convino (every input's nuisances re-centred at 0). See `docs/nuisance_values.md`. |
 | `--nonneg-combined` | Constrain combined observables to be ≥ 0 (off by default — not every combined quantity is a non-negative cross section). |
 | `--debug`    | Print a full traceback on error. |
 | `--version`  | Print the installed version and exit. |
@@ -67,7 +68,19 @@ only affects nuisance pulls.
 Input files use the original Convino text format (measurement files with
 `[hessian]` / `[correlation matrix]` / `[not fitted]` / `[estimates]` /
 `[systematics]` blocks, and a config file with `[observables]` /
-`[correlations]` / `[uncertainty impacts]`).
+`[correlations]` / `[uncertainty impacts]`), plus one extension: an optional
+`[nuisance values]` block carrying the post-fit central values of a profiled
+input's nuisances, which the original format cannot express. The block is
+inert unless `--use-nuisance-values` is given, so the default result stays the
+original Convino one (see `docs/nuisance_values.md`).
+
+### Running several combinations at once
+
+Each run spawns one JAX/BLAS thread pool sized to the whole machine. Two
+runs with impacts on the same node starve each other in the impacts phase
+(hundreds of threads spinning on 16 cores; a 14 s combination did not finish
+in 2 h). Cap the pools when running concurrently, e.g.
+`OMP_NUM_THREADS=4 OPENBLAS_NUM_THREADS=4 convino ...` (13 s each, measured).
 
 ### Differential normalisation
 

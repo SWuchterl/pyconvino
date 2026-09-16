@@ -8,7 +8,9 @@ Measurement files
   [correlation matrix] – lower-triangular correlation matrix with constraint column
   [not fitted]      – table of externalised (non-fitted) uncertainties
   [estimates]       – central values of the observables
-  [systematics]     – type tags (absolute/relative/lognormal) per systematic
+  [systematics]     – type tags (absolute/relative/lognormal) per systematic;
+                      "free" marks a Hessian parameter fitted without a prior
+  [nuisance values] – post-fit central values (pulls) of the Hessian nuisances
 
 Configuration files
   [global]          – isDifferential, normalise flags
@@ -229,6 +231,11 @@ class MeasurementFileData:
     # Systematic types: name → "absolute" | "relative" | "lognormal"
     sys_types: dict[str, str] = field(default_factory=dict)
 
+    # Hessian nuisances fitted without a Gaussian prior in the input fit
+    prior_free: set[str] = field(default_factory=set)
+    # Post-fit central values of the Hessian nuisances (0 if absent)
+    nuisance_values: dict[str, float] = field(default_factory=dict)
+
 
 @dataclass
 class ScanRange:
@@ -367,7 +374,18 @@ def parse_measurement_file(path: str | Path) -> MeasurementFileData:
             parts = line.split('=', 1)
             name = parts[0].strip()
             stype = parts[1].strip().lower()
-            data.sys_types[name] = stype
+            if stype == 'free':
+                data.prior_free.add(name)
+            else:
+                data.sys_types[name] = stype
+
+    # ---- Nuisance values block ---------------------------------------
+    if 'nuisance values' in blocks:
+        for line in blocks['nuisance values']:
+            if '=' not in line:
+                continue
+            name, val = line.split('=', 1)
+            data.nuisance_values[name.strip()] = float(val)
 
     return data
 

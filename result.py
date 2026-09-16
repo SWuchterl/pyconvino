@@ -327,6 +327,12 @@ def format_result(result: CombinationResult) -> str:
     buf.write(f"ndf: {result.ndf:d}\n")
     buf.write(f"chi2/ndf: {result.chi2_per_ndf:g}\n")
     buf.write(f"p-value: {result.p_value:g}\n")
+    # Only written when an input actually carries [nuisance values]; without
+    # them the tension is the whole chi2 and the output stays the C++ one.
+    if any(result.chi2_standalone.values()):
+        for name, v in result.chi2_standalone.items():
+            buf.write(f"chi2 standalone {name}: {v:g}\n")
+        buf.write(f"chi2 tension: {result.chi2_tension:g}\n")
     buf.write("[end goodness of fit]\n")
 
     # 7. Full correlation matrix
@@ -523,6 +529,10 @@ def to_dict(result: CombinationResult) -> dict:
         "ndf": int(result.ndf),
         "chi2_per_ndf": float(result.chi2_per_ndf),
         "p_value": float(result.p_value),
+        # chi2_min = sum of the inputs' own prior penalties (chi2_standalone,
+        # from their [nuisance values]) + chi2_tension (from combining them).
+        "chi2_standalone": {k: float(v) for k, v in result.chi2_standalone.items()},
+        "chi2_tension": float(result.chi2_tension),
         "converged": bool(result.converged),
         "normalised": bool(result.normalised),
         "sys_names": list(result.sys_names),

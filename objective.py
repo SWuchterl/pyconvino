@@ -5,13 +5,15 @@ Global parameter layout:
     pars[:nsys]  = nuisance pulls (lambda)
     pars[nsys:]  = combined observable values (x_comb), indexed by combined-obs index
 
-For each measurement k the chi-squared contribution is:
+For each measurement k, with dl = lambda_k - lambda_hat_k (the nuisances
+measured from the input's own post-fit values, see measurement.py):
 
     chi2_obs_k  = residual^T  LM  residual
-    chi2_LD_k   = lambda_k^T  LD  lambda_k
+    chi2_LD_k   = dl^T  LD  dl  -  2 dl^T P lambda_hat_k  +  chi2_offset_k
 
 where residual = x_meas - x_shifted and x_shifted is x_comb with all
-systematic shifts applied (relative first, then absolute, matching C++).
+systematic shifts dl applied (relative first, then absolute, matching C++).
+For lambda_hat = 0 this is the original Convino form.
 
 Global prior:   chi2_prior = lambda_all^T  inv_C  lambda_all
 
@@ -88,6 +90,12 @@ def make_chi2(
             "sys_idx":  jnp.array(ms.sys_global_idx, dtype=jnp.int32),
             "rel_mask": jnp.array([t == "relative" for t in ms.sys_types],
                                   dtype=bool),
+            # Gated so inputs without [nuisance values] keep the original,
+            # bit-identical arithmetic.
+            "has_pulls": bool(np.any(ms.lambda_hat)),
+            "lam_hat":  jnp.array(ms.lambda_hat),
+            "p_lam_hat": jnp.array(ms.prior_diag * ms.lambda_hat),
+            "offset":   float(ms.chi2_offset),
         })
     inv_C_jax = jnp.array(inv_C)
     _eps = jnp.asarray(np.finfo(float).tiny)
@@ -133,6 +141,8 @@ def make_chi2(
 
             x_comb_local  = pars[nsys + est_idx]   # (nest_local,)
             lambdas_local = pars[sys_idx]            # (nlamb_local,)
+            if md["has_pulls"]:
+                lambdas_local = lambdas_local - md["lam_hat"]
 
             x_sh = _x_shifted(x_comb_local, x_meas, Lk_up, Lk_down,
                                lambdas_local, rel_mask)
@@ -150,8 +160,10 @@ def make_chi2(
 
             total += residual @ LM_eff @ residual
 
-            # Systematic residual chi2
+            # Systematic residual chi2 (+ input-pull terms, see module docstring)
             total += lambdas_local @ LD @ lambdas_local
+            if md["has_pulls"]:
+                total += -2.0 * (lambdas_local @ md["p_lam_hat"]) + md["offset"]
 
         # Global prior
         lambdas_all = pars[:nsys]

@@ -32,6 +32,7 @@ import sys
 import time
 import warnings
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Optional
 
 import numpy as np
@@ -77,6 +78,13 @@ class CombinationResult:
     ndf: int = 0
     chi2_per_ndf: float = float("nan")
     p_value: float = float("nan")
+
+    # chi2 each input reaches on its own at its own best fit (the prior penalty
+    # of its post-fit nuisance values; 0 for an input without [nuisance values]),
+    # keyed by measurement file name, and chi2_min minus their sum: the part of
+    # chi2_min that comes from combining, i.e. the tension between the inputs.
+    chi2_standalone: dict[str, float] = field(default_factory=dict)
+    chi2_tension: float = 0.0
 
     # Combined observables
     combined_names: list[str] = field(default_factory=list)
@@ -190,6 +198,7 @@ class Combiner:
         verbose: bool = False,
         pd_reg_method: str = "shift",
         nonneg_combined: bool = False,
+        use_nuisance_values: bool = False,
     ):
         self.config = config
         self.meas_data = meas_data
@@ -200,6 +209,7 @@ class Combiner:
         self.verbose = verbose
         self.pd_reg_method = pd_reg_method
         self.nonneg_combined = nonneg_combined
+        self.use_nuisance_values = use_nuisance_values
         if impacts_only is not None:
             unknown = sorted(set(impacts_only) - set(config.impact_groups))
             if unknown:
@@ -219,6 +229,7 @@ class Combiner:
         verbose: bool = False,
         pd_reg_method: str = "shift",
         nonneg_combined: bool = False,
+        use_nuisance_values: bool = False,
     ) -> "Combiner":
         t0 = time.perf_counter()
         cfg = parse_config_file(config_path)
@@ -234,6 +245,7 @@ class Combiner:
             compute_impacts=compute_impacts, impacts_only=impacts_only,
             verbose=verbose, pd_reg_method=pd_reg_method,
             nonneg_combined=nonneg_combined,
+            use_nuisance_values=use_nuisance_values,
         )
 
     def _vtime(self, label: str, t0: float) -> None:
@@ -251,13 +263,16 @@ class Combiner:
 
         # 1. Setup measurements
         t0 = time.perf_counter()
-        setups = [setup_measurement(d) for d in self.meas_data]
+        setups = [
+            setup_measurement(d, self.use_nuisance_values) for d in self.meas_data
+        ]
 
         # 2. Build global parameter index layout (mutates each setup in place)
         all_sys_names, combined_names, nsys, nest = self._assign_global_indices(setups)
 
         # 3. Build prior inverse-covariance
-        inv_C, C_exact = self._build_prior(all_sys_names)
+        free_names = {n for s in setups for n, p in zip(s.sys_names, s.prior_diag) if p == 0}
+        inv_C, C_exact = self._build_prior(all_sys_names, free_names)
         self._vtime("setup + prior", t0)
 
         # 4. Build chi2
@@ -513,6 +528,11 @@ class Combiner:
         # documented on CombinationResult above.
         n_meas = sum(len(s.x_meas) for s in setups)
         ndf = n_meas - nest
+        chi2_standalone = {
+            Path(d.path).name: float(s.chi2_standalone)
+            for d, s in zip(self.meas_data, setups)
+        }
+        chi2_tension = float(chi2_min) - sum(chi2_standalone.values())
         if ndf > 0:
             chi2_per_ndf = float(chi2_min) / ndf
             p_value = float(_chi2_dist.sf(max(float(chi2_min), 0.0), ndf))
@@ -564,6 +584,8 @@ class Combiner:
             ndf=ndf,
             chi2_per_ndf=chi2_per_ndf,
             p_value=p_value,
+            chi2_standalone=chi2_standalone,
+            chi2_tension=chi2_tension,
             combined_names=combined_names,
             combined_values=combined_vals,
             combined_err_up=combined_err_up,
@@ -655,6 +677,7 @@ class Combiner:
                         prefix=self.prefix, compute_impacts=compute_impacts,
                         pd_reg_method=self.pd_reg_method,
                         nonneg_combined=self.nonneg_combined,
+                        use_nuisance_values=self.use_nuisance_values,
                     ).combine()
                 )
                 self._vtime(f"scan '{scan.name}' step {step + 1}/{n_steps}", t0)
@@ -725,13 +748,19 @@ class Combiner:
 
         return all_sys_names, combined_names, nsys, nest
 
-    def _build_prior(self, all_sys_names: list[str]) -> tuple[np.ndarray, np.ndarray]:
+    def _build_prior(
+        self, all_sys_names: list[str], free_names: set[str] = frozenset()
+    ) -> tuple[np.ndarray, np.ndarray]:
         """
         Build the (nsys × nsys) inverse prior covariance.
 
         The prior covariance C has:
           C[i,i] = 1  (unit prior for each systematic)
           C[i,j] = rho_{ij}  (from [correlations] block in config)
+
+        `free_names` (parameters an input fitted without a prior) get no
+        prior here either: their row/column of inv_C is zero. They must not
+        be correlated with anything, since there is no prior to correlate.
 
         Returns (inv_C, C_exact) where C_exact is the user-specified matrix
         (before PD regularisation) for display purposes.
@@ -763,7 +792,19 @@ class Combiner:
 
         C_exact = C.copy()  # exact user values for display
         C = _nearest_positive_definite(C, method=self.pd_reg_method, verbose=self.verbose)
-        return scipy_inv(C), C_exact
+        inv_C = scipy_inv(C)
+        for name in sorted(free_names):
+            i = name_to_idx[name]
+            off = np.delete(C_exact[i], i)
+            if np.any(off != 0):
+                raise ValueError(
+                    f"free parameter {name!r} appears in [correlations] with a "
+                    "non-zero correlation; a parameter without prior cannot be "
+                    "correlated through the prior"
+                )
+            inv_C[i, :] = 0.0
+            inv_C[:, i] = 0.0
+        return inv_C, C_exact
 
     def _initial_params(
         self,
@@ -1133,21 +1174,26 @@ class Combiner:
                 # symmetric (purely quadratic) case HESSE == profile, so the
                 # cheaper submatrix errors above are kept unchanged and no refit
                 # is performed.
+                # Frozen at their post-fit values (identical to freezing at 0
+                # for inputs without [nuisance values], whose pulls are 0):
+                # pinning a pulled nuisance back to 0 would both misdefine the
+                # impact and turn every refit into a full re-minimisation.
                 if not responses_symmetric:
+                    frozen_vals = np.array(pars_best, dtype=np.float64)[frozen_idx]
                     res, _ = self._minimize_frozen(
-                        chi2_fn, grad_fn, pars_best, frozen_idx, 0.0,
+                        chi2_fn, grad_fn, pars_best, frozen_idx, frozen_vals,
                         {"maxiter": 2000, "ftol": 1e-14, "gtol": 1e-8},
                     )
                     p_frozen_full = np.array(pars_best, dtype=np.float64)
                     p_frozen_full[free_mask] = res.x
-                    p_frozen_full[frozen_idx] = 0.0
+                    p_frozen_full[frozen_idx] = frozen_vals
                     eu_list, ed_list = [], []
                     for k in range(nest):
                         eu_f, ed_f = self._profile_error(
                             chi2_fn, grad_fn, p_frozen_full, res.fun,
                             nsys + k, float(err_frozen_up[k]),
                             extra_frozen_idx=frozen_idx,
-                            extra_frozen_vals=[0.0] * len(frozen_idx),
+                            extra_frozen_vals=list(frozen_vals),
                         )
                         eu_list.append(eu_f)
                         ed_list.append(ed_f)

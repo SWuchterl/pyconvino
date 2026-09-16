@@ -475,7 +475,33 @@ supported model set — `absolute` and `relative` — is unambiguous.
 
 ---
 
-## 11. Summary
+## 11. Post-fit nuisance values of profiled inputs  *(new, opt-in)*
+
+**Off by default** (`--use-nuisance-values` / `use_nuisance_values=True`), so
+the default result is the original Convino one. Full derivation, formulas and
+file format: **[`nuisance_values.md`](nuisance_values.md)**. In short: the
+Convino chi2 has no field for an input's fitted nuisance values, so a profiled
+input is silently re-centred at $\hat\lambda = 0$ (Dado/Owen/Pinamonti 2026,
+App. A). With the option on, each measurement uses
+$\delta\lambda = \lambda - \hat\lambda$ plus a linear term
+$-2\,\delta\lambda^{\mathsf T} P\hat\lambda$ and a constant
+$\hat\lambda^{\mathsf T} P D^{+} P \hat\lambda$; the global prior stays
+centred at 0.
+
+**Impacts.** Frozen refits (asymmetric-response path, §5) pin the frozen
+nuisances at their post-fit values, not at 0. Without `[nuisance values]` the
+two coincide (all pulls are 0 there).
+
+**What changes.** The Hessian is unchanged — the exact and the original
+objective differ by a term linear in $\theta$ — so every covariance, error,
+impact and `x_sys_cov` is identical. Only the central values and post-fit
+pulls move. The original form therefore reports the covariance of the exact
+estimator while computing a different, less precise one; the extension makes
+the two consistent. For an NP not correlated with any other input the
+profiled POI likelihood is the same either way, so `noCorr`-type setups are
+unaffected.
+
+## 12. Summary
 
 | # | Item | Class | Reference behaviour |
 |---|------|-------|---------------------|
@@ -488,12 +514,15 @@ supported model set — `absolute` and `relative` — is unambiguous.
 | 8 | Group-level effective pulls | New | Not reported |
 | 9 | Differential normalisation | Port | Reproduced; pre-norm summary kept, not nulled |
 | 10 | `lognormal` fail-loud | Aligned | Also refuses |
+| 11 | Post-fit nuisance values of profiled inputs (opt-in, off by default) | New | Re-centres every input's nuisances at 0 |
 
 All **reformulation** items are validated to reproduce the reference to the
 per-mille level or better on the paper's worked example and the ATLAS+CMS
 combinations (`docs/paper_benchmark_crosscheck.md`); all **new** items reduce to
 quantities derivable from the already-computed post-fit Hessian of the shared
 model (1), so they introduce output, not a change to the combination itself.
+The one exception is item 11, which changes the objective — and is therefore
+off unless the user asks for it.
 
 ---
 

@@ -83,6 +83,14 @@ def main():
              "every combined quantity is a non-negative cross section)"
     )
 
+    parser.add_argument(
+        "--use-nuisance-values", action="store_true", dest="use_nuisance_values",
+        help="Use the [nuisance values] block of each input, i.e. the post-fit "
+             "central values of a profiled input's nuisances. Off by default, "
+             "which reproduces the original C++ Convino (all input nuisances "
+             "re-centred at 0); see docs/nuisance_values.md"
+    )
+
     args = parser.parse_args()
 
     impacts_only = None
@@ -110,6 +118,7 @@ def main():
             verbose=args.verbose,
             pd_reg_method=args.pd_reg_method,
             nonneg_combined=args.nonneg_combined,
+            use_nuisance_values=args.use_nuisance_values,
         )
         result = combiner.combine()
         write_result(result, prefix=args.prefix)
