@@ -1,0 +1,59 @@
+
+#------------------------------------------------------------------------------
+#------------------------------------------------------------------------------
+#------------------------------------------------------------------------------
+Other ones corrleating 13TeV ATLAS and CMS uncertianties
+#------------------------------------------------------------------------------
+#------------------------------------------------------------------------------
+#------------------------------------------------------------------------------
+CMS_modelling_ttbar_bfrag = (0.25) ATLAS_13TeV_modelling_ttbar_Herwig
+CMS_modelling_ttbar_bfragPythiaDefault = (0.25) ATLAS_13TeV_modelling_ttbar_Herwig
+CMS_modelling_ttbar_bfragPeterson = (0.25) ATLAS_13TeV_modelling_ttbar_Herwig
+CMS_modelling_ttbar_erdOn  = (0.25) ATLAS_13TeV_modelling_ttbar_ATLCR2
+CMS_modelling_ttbar_tuneQCD  = (0.25) ATLAS_13TeV_modelling_ttbar_ATLCR2
+CMS_modelling_ttbar_tuneGluon  = (0.25) ATLAS_13TeV_modelling_ttbar_ATLCR2
+CMS_modelling_ttbar_hdamp = (0.50) ATLAS_13TeV_modelling_ttbar_hdamp3mt
+CMS_modelling_ttbar_fsr = (0.75) ATLAS_13TeV_modelling_ttbar_isrmuRfac1p0fsrmuRfac0p5
+CMS_modelling_ttbar_tune = (0.50) ATLAS_13TeV_modelling_ttbar_A14Var1Up
+CMS_modelling_ttbar_isr = (0.50) ATLAS_13TeV_modelling_ttbar_Var3cUp 
+CMS_modelling_ttbar_muR = (0.50) ATLAS_13TeV_modelling_ttbar_muR2p0muF1p0 
+CMS_modelling_ttbar_muF = (0.50) ATLAS_13TeV_modelling_ttbar_muR1p0muF2p0 
+
+# Obvious ones from the JES mapping - copied for 13 TeV ATLAS-CMS from 8 TeV
+#ATLAS_13TeV_scale_j_flavorresponse = (0.75)  CMS_scale_j_flavorGluon
+ATLAS_13TeV_scale_j_EtaIntercalibrationModelling = (0.75)  CMS_scale_j_relativeFSR
+CMS_scale_j_absoluteMPFBias = (0.25)  ATLAS_13TeV_scale_j_NPMixed1
+CMS_scale_j_absoluteMPFBias = (0.25)  ATLAS_13TeV_scale_j_NPMixed2
+CMS_scale_j_absoluteMPFBias = (0.25)  ATLAS_13TeV_scale_j_NPMixed3
+#CMS_scale_j_absoluteMPFBias = (0.25)  ATLAS_13TeV_scale_j_NPMixed4
+CMS_scale_j_absoluteMPFBias = (0.25)  ATLAS_13TeV_scale_j_NPModelling1
+CMS_scale_j_absoluteMPFBias = (0.25)  ATLAS_13TeV_scale_j_NPModelling2
+CMS_scale_j_absoluteMPFBias = (0.25)  ATLAS_13TeV_scale_j_NPModelling3
+CMS_scale_j_absoluteMPFBias = (0.25)  ATLAS_13TeV_scale_j_NPModelling4
+
+# background norms
+CMS_norm_zjets_1b = (0.0)  ATLAS_13TeV_norm_zjets
+CMS_norm_zjets_1j = (0.0)  ATLAS_13TeV_norm_zjets
+CMS_norm_zjets_2b = (0.0)  ATLAS_13TeV_norm_zjets
+CMS_norm_zjets_2j = (0.0)  ATLAS_13TeV_norm_zjets
+CMS_norm_zjets_3j = (0.0)  ATLAS_13TeV_norm_zjets
+CMS_norm_singletop = (0.0)  ATLAS_13TeV_norm_tW
+
+# Start adding tt0jet correlations
+CMS_norm_tt0jet = (0.00) ATLAS_13TeV_modelling_ttbar_PtHard1
+CMS_norm_tt0jet = (0.00) ATLAS_13TeV_modelling_ttbar_muR1p0muF2p0
+CMS_norm_tt0jet = (0.00) ATLAS_13TeV_modelling_ttbar_muR2p0muF1p0
+CMS_norm_tt0jet = (0.00) ATLAS_13TeV_modelling_ttbar_Herwig
+CMS_norm_tt0jet = (0.00) ATLAS_13TeV_modelling_ttbar_hdamp3mt
+CMS_norm_tt0jet = (0.00) ATLAS_13TeV_modelling_ttbar_TtbarNNLOReweight
+CMS_norm_tt0jet = (0.00) ATLAS_13TeV_modelling_ttbar_ATLCR2
+CMS_norm_tt0jet = (0.00) ATLAS_13TeV_modelling_ttbar_isrmuRfac1p0fsrmuRfac0p5
+CMS_norm_tt0jet = (0.00) ATLAS_13TeV_modelling_ttbar_Var3cUp
+CMS_norm_tt0jet = (0.00) ATLAS_13TeV_modelling_ttbar_A14Var1Up
+
+#random stuff to try?
+ATLAS_13TeV_modelling_ttbar_mTopMC = (0.5) CMS_modelling_ttbar_mass
+ATLAS_13TeV_modelling_singletop_DSvsDR = (0.25) CMS_modelling_singletop_muF
+ATLAS_13TeV_modelling_singletop_DSvsDR = (0.25) CMS_modelling_singletop_muR
+ATLAS_13TeV_modelling_singletop_DSvsDR = (0.25) CMS_modelling_singletop_isr
+ATLAS_13TeV_modelling_singletop_DSvsDR = (0.25) CMS_modelling_singletop_fsr
