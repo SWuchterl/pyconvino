@@ -6,8 +6,7 @@ declare -a pairs=("Combination_ATLAS13CMS13_corr" "Combination_ATLAS13CMS13_noCo
 
 declare -a triples=("Combination_ATLAS813CMS13_corr_extrabJES" "Combination_ATLAS813CMS13_corrV2" "Combination_ATLAS813CMS13_noCorr")
 
-declare -a triplesTest=("Combination_ATLAS813CMS13_corrDeltaPhi" "Combination_ATLAS813CMS13_corrExtreme" "Combination_ATLAS813CMS13_corrExtremeInv" "Combination_ATLAS813CMS13_corrMore" "Combination_ATLAS813CMS13_corrV2_noLineshape" "Combination_ATLAS813CMS13_corrV2_noRecoil" "Combination_ATLAS813CMS13_corrV2_statonly" "Combination_ATLAS813CMS13_corrV2_extra" "Combination_ATLAS813CMS13_corr_extrabJES_optA" "Combination_ATLAS813CMS13_corr_extrabJES_optB" "Combination_ATLAS813CMS13_corr_extrabJES_optC" "Combination_ATLAS813CMS13_corr_extrabJES_optR2")
-# declare -a triplesTest=("Combination_ATLAS813CMS13_corrV2_extra")
+declare -a triplesTest=("Combination_ATLAS813CMS13_corrDeltaPhi" "Combination_ATLAS813CMS13_corrExtreme" "Combination_ATLAS813CMS13_corrExtremeInv" "Combination_ATLAS813CMS13_corrMore" "Combination_ATLAS813CMS13_corrV2_noLineshape" "Combination_ATLAS813CMS13_corrV2_noRecoil" "Combination_ATLAS813CMS13_corrV2_statonly" "Combination_ATLAS813CMS13_corr_extrabJES_optA" "Combination_ATLAS813CMS13_corr_extrabJES_optB" "Combination_ATLAS813CMS13_corr_extrabJES_optC" "Combination_ATLAS813CMS13_corr_extrabJES_optR2")
 
 run_combos() {
     for combsetup in "$@"; do
