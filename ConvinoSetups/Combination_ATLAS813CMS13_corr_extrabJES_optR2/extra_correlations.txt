@@ -32,10 +32,10 @@ ATLAS_8TeV_scale_j_PileupOffsetNPV = (0.75) ATLAS_13TeV_scale_j_PileupOffsetNPV
 ATLAS_8TeV_scale_j_PileupPt = (0.75) ATLAS_13TeV_scale_j_PileupPtTerm
 ATLAS_8TeV_scale_j_PileupRho = (0.75) ATLAS_13TeV_scale_j_PileupRhoTopology
 
-ATLAS_8TeV_scale_b = (0.5) ATLAS_13TeV_scale_b_prop
-ATLAS_8TeV_scale_b = (0.25) ATLAS_13TeV_scale_j_PerJetGenShowerHF
-ATLAS_8TeV_scale_b = (0.25) ATLAS_13TeV_scale_j_PerJetHadronizationHF
-ATLAS_8TeV_scale_b = (0.25) ATLAS_13TeV_scale_j_PerJetShowerHF
+ATLAS_8TeV_scale_b = (0.25) ATLAS_13TeV_scale_b_prop
+ATLAS_8TeV_scale_b = (0.5) ATLAS_13TeV_scale_j_PerJetGenShowerHF
+ATLAS_8TeV_scale_b = (0.5) ATLAS_13TeV_scale_j_PerJetHadronizationHF
+ATLAS_8TeV_scale_b = (0.5) ATLAS_13TeV_scale_j_PerJetShowerHF
 
 # modeling
 ATLAS_8TeV_modelling_ttbar_ShowerHadronization = (0.50) ATLAS_13TeV_modelling_ttbar_Herwig
@@ -62,10 +62,9 @@ ATLAS_8TeV_modelling_ttbar_MatrixElement = (0.25) ATLAS_13TeV_modelling_ttbar_Pt
 
 # Obvious ones from the JES mapping
 ATLAS_8TeV_scale_b = (0.75)  CMS_scale_j_flavorBottom
-CMS_scale_j_flavorBottom = (0.5) ATLAS_13TeV_scale_b_prop
-CMS_scale_j_flavorBottom = (0.25) ATLAS_13TeV_scale_j_PerJetGenShowerHF
-CMS_scale_j_flavorBottom = (0.25) ATLAS_13TeV_scale_j_PerJetHadronizationHF
-CMS_scale_j_flavorBottom = (0.25) ATLAS_13TeV_scale_j_PerJetShowerHF
+CMS_scale_j_flavorBottom = (0.5) ATLAS_13TeV_scale_j_PerJetGenShowerHF
+CMS_scale_j_flavorBottom = (0.5) ATLAS_13TeV_scale_j_PerJetHadronizationHF
+CMS_scale_j_flavorBottom = (0.5) ATLAS_13TeV_scale_j_PerJetShowerHF
 ATLAS_8TeV_scale_j_flavorresponse = (0.75)  CMS_scale_j_flavorGluon
 ATLAS_8TeV_scale_j_EtaIntercalibrationModel = (0.75)  CMS_scale_j_relativeFSR
 CMS_scale_j_absoluteMPFBias = (0.25)  ATLAS_8TeV_scale_j_Mix1
