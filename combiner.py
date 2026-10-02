@@ -126,6 +126,15 @@ class CombinationResult:
     # cross-experiment correlations, where g^T g alone would double-count).
     prior_inv_cov: np.ndarray = field(default_factory=lambda: np.zeros((0, 0)))
 
+    # Effective auxiliary precision for the global-impacts stat/syst split:
+    # prior_inv_cov plus the negative part of each input's nuisance block LD
+    # (input Hessian information minus the unit prior). A negative LD direction
+    # means the input gives a post-fit variance above the prior, which a
+    # Gaussian profile fit cannot produce; counting it as data would give a
+    # negative "data variance" (global stat < frozen stat). It is moved to the
+    # auxiliary (syst) side instead. Equal to prior_inv_cov if no LD < 0.
+    prior_inv_cov_eff: np.ndarray = field(default_factory=lambda: np.zeros((0, 0)))
+
     # Best-fit full parameter vector
     pars_best: np.ndarray = field(default_factory=lambda: np.zeros(0))
     nsys: int = 0
@@ -273,6 +282,7 @@ class Combiner:
         # 3. Build prior inverse-covariance
         free_names = {n for s in setups for n, p in zip(s.sys_names, s.prior_diag) if p == 0}
         inv_C, C_exact = self._build_prior(all_sys_names, free_names)
+        inv_C_eff = self._effective_prior(setups, inv_C)
         self._vtime("setup + prior", t0)
 
         # 4. Build chi2
@@ -479,6 +489,7 @@ class Combiner:
                 all_sys_names, combined_err_up, combined_err_down,
                 nsys, nest, corr_est, responses_symmetric, H_fit,
                 per_sys_groups,
+                true_frozen_cov=True,
             )
             total_syst_impact_up, total_syst_impact_down = per_sys_impacts.pop(
                 "__stat_only__"
@@ -602,6 +613,7 @@ class Combiner:
             impact_cov_groups=impact_cov_groups,
             sys_group_labels=sys_group_labels,
             prior_inv_cov=np.asarray(inv_C),
+            prior_inv_cov_eff=inv_C_eff,
             pars_best=np.array(pars_best),
             nsys=nsys,
             nest=nest,
@@ -1084,6 +1096,36 @@ class Combiner:
 
         return float(eu), float(ed)
 
+    @staticmethod
+    def _effective_prior(setups, inv_C: np.ndarray) -> np.ndarray:
+        """inv_C plus the negative part of every input's nuisance block LD.
+
+        The chi2 holds lambda^T LD lambda per input and lambda^T inv_C lambda
+        globally, so the data information on the nuisances is LD (input
+        information minus the unit prior). Eigen-directions with LD < 0 are
+        directions where the input's post-fit variance exceeds the prior; they
+        are added to the auxiliary precision so that the downstream global
+        stat (data part) stays >= the frozen stat. The fit is not changed.
+        """
+        inv_C_eff = np.array(inv_C, dtype=float, copy=True)
+        for k, s in enumerate(setups):
+            LD = np.asarray(s.LD, dtype=float)
+            if LD.size == 0:
+                continue
+            e, V = np.linalg.eigh(0.5 * (LD + LD.T))
+            neg = e < -1e-9 * max(1.0, float(np.abs(e).max()))
+            if not np.any(neg):
+                continue
+            idx = np.asarray(s.sys_global_idx)
+            inv_C_eff[np.ix_(idx, idx)] += (V[:, neg] * e[neg]) @ V[:, neg].T
+            warnings.warn(
+                f"[convino] input #{k}: {int(neg.sum())} nuisance "
+                f"direction(s) with post-fit variance above the prior (min LD "
+                f"eigenvalue {e.min():.3g}); moved to prior_inv_cov_eff for the "
+                f"global-impacts split (fit unchanged)"
+            )
+        return inv_C_eff
+
     def _compute_impacts(
         self,
         chi2_fn,
@@ -1099,6 +1141,7 @@ class Combiner:
         responses_symmetric: bool,
         H_fit: np.ndarray,
         groups: dict[str, list[str]],
+        true_frozen_cov: bool = False,
     ) -> tuple[dict[str, tuple[np.ndarray, np.ndarray]], dict[str, np.ndarray]]:
         """
         For each entry in `groups` (label -> member systematic names), freeze
@@ -1121,7 +1164,13 @@ class Combiner:
 
         `corr_est` is the (nest x nest) post-fit correlation of the combined
         observables from the FULL fit; C++ scales it by the frozen errors to
-        build each per-group covariance (see combiner.cpp printout).
+        build each per-group covariance (see combiner.cpp printout). With
+        `true_frozen_cov` the covariance instead uses the correlation of the
+        frozen fit itself (est block of 2*inv(H_restricted), i.e. the Schur
+        complement of the full covariance), which is the actual covariance of
+        the combined observables with the group frozen. Used for the exported
+        stat_only_covariance / cov_per_systematic; the printed per-group
+        matrices keep the C++ convention.
 
         Returns (impacts, frozen_covs) where:
           impacts[label]     = (impact_up, impact_down) per combined observable
@@ -1207,7 +1256,14 @@ class Combiner:
                 # with sig = max(|err_up|, |err_down|). (Diagonal = sig**2 since
                 # corr_est[i,i] = 1.)
                 sym_frozen = np.maximum(np.abs(err_frozen_up), np.abs(err_frozen_down))
-                est_cov = corr_est * np.outer(sym_frozen, sym_frozen)
+                if true_frozen_cov:
+                    c_fr = cov_restricted[est_slice, est_slice]
+                    d_fr = np.sqrt(np.maximum(np.diag(c_fr), 1e-300))
+                    corr_fr = c_fr / np.outer(d_fr, d_fr)
+                    np.fill_diagonal(corr_fr, 1.0)
+                    est_cov = corr_fr * np.outer(sym_frozen, sym_frozen)
+                else:
+                    est_cov = corr_est * np.outer(sym_frozen, sym_frozen)
             except np.linalg.LinAlgError:
                 est_cov = np.full((nest, nest), np.nan)
                 err_frozen_up = np.full(nest, np.nan)

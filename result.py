@@ -544,6 +544,9 @@ def to_dict(result: CombinationResult) -> dict:
         # variance is g^T inv_C g (g_i = Cov(POI, nu_i)), which reduces to g^T g only
         # for independent unit priors. Needed to avoid double-counting correlated priors.
         "prior_inv_cov": np.asarray(result.prior_inv_cov),
+        # Effective auxiliary precision (prior_inv_cov + negative input LD part),
+        # see CombinationResult.prior_inv_cov_eff; use it for the global stat/syst split.
+        "prior_inv_cov_eff": np.asarray(result.prior_inv_cov_eff),
         "stat_only_covariance": np.asarray(result.stat_only_covariance),
         "total_syst_covariance": total_syst_covariance,
         "total_syst_impact_up": np.asarray(result.total_syst_impact_up),
