@@ -194,13 +194,12 @@ ATLAS_8TeV_eff_b_light = (0.00) ATLAS_13TeV_eff_b_light_1
 ATLAS_8TeV_eff_b_light = (0.00) ATLAS_13TeV_eff_b_light_2
 ATLAS_8TeV_eff_b_light = (0.00) ATLAS_13TeV_eff_b_light_3
 
-# ATLAS 8 TeV x ATLAS 13 TeV lepton uncertainties, 75% (2026-10-05).
+# ATLAS 8 TeV x ATLAS 13 TeV lepton energy scale and resolution uncertainties, 75% (2026-10-05).
 # One 13 TeV partner per 8 TeV NP (the dominant 13 TeV component of the same category), so that the
-# prior correlation matrix stays positive-definite: 75% to all components of a category
-# (sum of rho^2 > 1 for scale_m, res_m, eff_m) is not positive-definite.
-# ATLAS_13TeV_eff_e_* has no 8 TeV counterpart.
+# prior correlation matrix stays positive-definite (75% to all components of a category is not).
+# Lepton efficiencies are not correlated (ATLAS_13TeV_eff_e_* has no 8 TeV counterpart;
+# correlating ATLAS_8TeV_eff_m with ATLAS_13TeV_eff_m_IsolSYST at 75% was tested: m_t +3.9 MeV).
 ATLAS_8TeV_scale_e = (0.75) ATLAS_13TeV_scale_e_
 ATLAS_8TeV_res_e = (0.75) ATLAS_13TeV_res_e_all
 ATLAS_8TeV_scale_m = (0.75) ATLAS_13TeV_scale_m_CB
 ATLAS_8TeV_res_m = (0.75) ATLAS_13TeV_res_m_RESBIAS
-ATLAS_8TeV_eff_m = (0.75) ATLAS_13TeV_eff_m_IsolSYST
