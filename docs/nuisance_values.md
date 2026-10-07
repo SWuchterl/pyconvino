@@ -5,7 +5,7 @@ what the original C++ Convino calculates. The block is then read and checked,
 but it has no effect on the result.
 
 ```bash
-convino config.txt --use-nuisance-values        # CLI
+pyconvino config.txt --use-nuisance-values        # CLI
 Combiner.from_config(cfg, use_nuisance_values=True)   # Python API
 ```
 

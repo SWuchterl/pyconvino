@@ -72,10 +72,10 @@ it was never finished in the C++ reference either.
 
 ```bash
 # Minimal — writes convino_result.txt
-convino path/to/rho_config.txt
+pyconvino path/to/rho_config.txt
 
 # Full run with all outputs
-convino path/to/rho_config.txt \
+pyconvino path/to/rho_config.txt \
     --prefix out/myrun \
     --export both \
     --scan \

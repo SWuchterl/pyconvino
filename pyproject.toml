@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "Convino physics combination tool — Python/JAX port (no ROOT, no Minuit)"
 readme = "README.md"
 requires-python = ">=3.11"
-authors = [{ name = "Sebastian Wuchterl" }]
+authors = [{ name = "Sebastian Wuchterl", email = "sebastian.wuchterl@cern.ch" }]
 keywords = ["physics", "statistics", "combination", "HEP", "Convino", "JAX", "chi2"]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -39,8 +39,6 @@ Issues = "https://github.com/SWuchterl/pyconvino/issues"
 
 [project.scripts]
 pyconvino = "pyconvino.cli:main"
-# Old name, kept so existing scripts (condor jobs) still work.
-convino = "pyconvino.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

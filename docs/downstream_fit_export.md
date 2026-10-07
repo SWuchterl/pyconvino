@@ -9,7 +9,7 @@ it in mtpole-ttj.
 ## How to produce the export file
 
 ```bash
-convino ConvinoSetups/Combination_ATLAS813CMS13_corrV2/rho_config.txt \
+pyconvino ConvinoSetups/Combination_ATLAS813CMS13_corrV2/rho_config.txt \
     --prefix out/combo \
     --export npz
 # → writes out/combo_result.npz

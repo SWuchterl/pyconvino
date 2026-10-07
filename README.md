@@ -7,6 +7,11 @@
 [![test](https://github.com/SWuchterl/pyconvino/actions/workflows/test.yml/badge.svg)](https://github.com/SWuchterl/pyconvino/actions/workflows/test.yml)
 [![lint](https://github.com/SWuchterl/pyconvino/actions/workflows/lint.yml/badge.svg)](https://github.com/SWuchterl/pyconvino/actions/workflows/lint.yml)
 ![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-blue)
+<!-- After the first PyPI release, replace the Python badge with:
+[![PyPI](https://img.shields.io/pypi/v/pyconvino)](https://pypi.org/project/pyconvino/)
+![Python](https://img.shields.io/pypi/pyversions/pyconvino)
+![License](https://img.shields.io/pypi/l/pyconvino)
+-->
 
 A Python/JAX port of [Convino](https://github.com/jkiesele/Convino) — a tool for
 combining physics measurements with correlated systematic uncertainties. This
@@ -23,39 +28,10 @@ This pulls in JAX, NumPy and SciPy. Python 3.11 or newer is needed. For
 GPU/TPU builds of JAX, install the appropriate JAX wheel for your platform
 first. For development, clone the repository and use `pip install -e ".[test]"`.
 
-### macOS with an x86_64 Python (Intel Macs, or Rosetta on Apple silicon)
-
-PyPI has no JAX ≥ 0.10 for x86_64 macOS (the last x86_64 macOS wheel is
-0.4.38), so there `pip install pyconvino` cannot find a matching `jax`. This
-also hits Apple-silicon Macs that run an x86_64 Python under Rosetta (e.g. an
-old Intel Homebrew or Mambaforge install). Check your Python:
-
-```bash
-python -c "import platform; print(platform.machine())"   # arm64 or x86_64
-```
-
-On Apple silicon, if it prints `x86_64`:
-
-- **Use a native arm64 Python (recommended).** For example a native
-  Miniforge, or a conda env forced to arm64:
-  ```bash
-  CONDA_SUBDIR=osx-arm64 conda create -n pyconvino python=3.12 pip
-  conda activate pyconvino
-  conda config --env --set subdir osx-arm64
-  pip install pyconvino
-  ```
-
-On an Intel Mac, or if you must keep the x86_64 Python:
-
-- **Take JAX from conda-forge**, which still builds it for x86_64 macOS (it
-  also runs under Rosetta, but slower than native):
-  ```bash
-  conda install -c conda-forge "jax>=0.10" numpy scipy
-  pip install pyconvino
-  ```
-
-Linux (x86_64 and aarch64) and native arm64 macOS work with plain
-`pip install pyconvino`.
+**macOS with an x86_64 Python** (Intel Macs, or Rosetta on Apple silicon): PyPI
+has no JAX ≥ 0.10 for this platform. Use a native arm64 Python, or install JAX
+from conda-forge first (`conda install -c conda-forge "jax>=0.10"`). Details:
+[docs/install_macos.md](docs/install_macos.md).
 
 ## Usage
 
@@ -64,8 +40,7 @@ Linux (x86_64 and aarch64) and native arm64 macOS work with plain
 pyconvino path/to/rho_config.txt --prefix /tmp/mycombo
 # -> writes /tmp/mycombo_result.txt
 
-# `convino` is an alias of `pyconvino`, kept for existing scripts.
-# Or, without the console script:
+# or, without the console script:
 python -m pyconvino.cli path/to/rho_config.txt --prefix /tmp/mycombo
 ```
 
@@ -180,6 +155,18 @@ commit the goldens:
 ```bash
 python -m test.regen_golden            # all setups + formatter golden
 python -m test.regen_golden statonly   # a single setup
+```
+
+In CI the slow tests run only on request: Actions > test > Run workflow.
+
+## Code style
+
+[ruff](https://docs.astral.sh/ruff/) checks and formats the code (black style,
+line length 88; rules in `pyproject.toml`), and mypy checks the types of `src/`.
+The CI runs both. To run ruff on each commit:
+
+```bash
+pip install pre-commit && pre-commit install
 ```
 
 ## Package layout
