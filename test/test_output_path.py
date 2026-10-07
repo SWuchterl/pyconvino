@@ -20,8 +20,9 @@ class OutputPathTest(unittest.TestCase):
             prefix = str(Path(d) / "sub" / "deeper" / "run1")
             out = prepare_output_path(prefix)
             self.assertEqual(out, Path(prefix + "_result.txt"))
-            self.assertTrue(out.parent.is_dir(),
-                            "parent directory should have been created")
+            self.assertTrue(
+                out.parent.is_dir(), "parent directory should have been created"
+            )
             # The returned path must be writable.
             out.write_text("ok", encoding="utf-8")
             self.assertEqual(out.read_text(encoding="utf-8"), "ok")

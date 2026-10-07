@@ -80,9 +80,7 @@ class ScanVerboseTest(unittest.TestCase):
         self.assertEqual(len(scan_lines), 3)
         for i, line in enumerate(scan_lines, start=1):
             self.assertIn(f"step {i}/3", line)
-        self.assertEqual(
-            [l for l in lines if "chi2 build" in l or "post-fit" in l], []
-        )
+        self.assertEqual([l for l in lines if "chi2 build" in l or "post-fit" in l], [])
 
 
 if __name__ == "__main__":

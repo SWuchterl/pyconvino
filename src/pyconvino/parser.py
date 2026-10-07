@@ -33,6 +33,7 @@ import numpy as np
 # Low-level helpers
 # ---------------------------------------------------------------------------
 
+
 def _strip_comment(line: str) -> str:
     """Remove inline comment (everything from the first '#' on)."""
     pos = line.find("#")
@@ -57,13 +58,13 @@ def _read_blocks(path: Path) -> dict[str, list[str]]:
         nonlocal current_block, current_lines
         for raw in raw_lines:
             # Handle #!FILE include directive BEFORE stripping comments
-            m_file = re.match(r'\s*#!FILE\s*=\s*(.+)', raw)
+            m_file = re.match(r"\s*#!FILE\s*=\s*(.+)", raw)
             if m_file and current_block is not None:
                 # Drop any trailing inline comment after the path. We cannot use
                 # _strip_comment on the whole line because the directive itself
                 # starts with '#'.
                 inc = m_file.group(1)
-                hash_pos = inc.find('#')
+                hash_pos = inc.find("#")
                 if hash_pos >= 0:
                     inc = inc[:hash_pos]
                 include_path = base_dir / inc.strip()
@@ -76,10 +77,10 @@ def _read_blocks(path: Path) -> dict[str, list[str]]:
                 continue
 
             # Detect block start: [marker] (but not [end marker])
-            m_start = re.match(r'^\[([^\]]+)\]$', line, re.IGNORECASE)
+            m_start = re.match(r"^\[([^\]]+)\]$", line, re.IGNORECASE)
             if m_start:
                 tag = m_start.group(1).strip().lower()
-                if tag.startswith('end '):
+                if tag.startswith("end "):
                     # Close the block
                     name = tag[4:].strip()
                     if current_block and current_block == name:
@@ -117,18 +118,18 @@ def _parse_uncertainty_str(s: str) -> tuple[float, float]:
     Returns (upvar, downvar) matching uncertainty::readFromString.
     """
     s = s.strip()
-    if '(' not in s:
+    if "(" not in s:
         v = float(s)
         return v, -v
 
-    s = s.replace(' ', '')
-    s = s.strip('()')
+    s = s.replace(" ", "")
+    s = s.strip("()")
     # Find the separator between the up and down variations: the last '+'/'-'
     # that is the sign of the down value rather than part of an exponent
     # (e.g. the '-' in '1.2e-3' must not be treated as the separator).
     sep = -1
     for i in range(len(s) - 1, 0, -1):
-        if s[i] in '+-' and s[i - 1] not in 'eE':
+        if s[i] in "+-" and s[i - 1] not in "eE":
             sep = i
             break
     if sep <= 0:  # no separator found → a single (symmetric) value in parens
@@ -137,15 +138,17 @@ def _parse_uncertainty_str(s: str) -> tuple[float, float]:
     first = s[:sep]
     second = s[sep:]
 
-    if first.startswith('+'):
+    if first.startswith("+"):
         first = first[1:]
-    if second.startswith('+'):
+    if second.startswith("+"):
         second = second[1:]
 
     return float(first), float(second)
 
 
-def _parse_triangular(lines: list[str]) -> tuple[list[str], list[float | None], list[list[float]]]:
+def _parse_triangular(
+    lines: list[str],
+) -> tuple[list[str], list[float | None], list[list[float]]]:
     """
     Parse a lower-triangular matrix block.
 
@@ -178,8 +181,8 @@ def _parse_triangular(lines: list[str]) -> tuple[list[str], list[float | None], 
         # name is a parenthesised value, e.g. '(0.5)'. Detected per row (not
         # inferred once from row 0) so a block whose rows are not all uniform
         # is still parsed correctly.
-        if len(tokens) > 1 and tokens[1].startswith('(') and tokens[1].endswith(')'):
-            constraints.append(float(tokens[1].strip('()')))
+        if len(tokens) > 1 and tokens[1].startswith("(") and tokens[1].endswith(")"):
+            constraints.append(float(tokens[1].strip("()")))
             values = [float(t) for t in tokens[2:]]
         else:
             constraints.append(None)
@@ -201,9 +204,11 @@ def _parse_triangular(lines: list[str]) -> tuple[list[str], list[float | None], 
 # Data classes (raw file data before mathematical setup)
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class MeasurementFileData:
     """Raw data read from a single measurement file."""
+
     path: str = ""
 
     # Central values and stat errors keyed by estimate name
@@ -215,7 +220,9 @@ class MeasurementFileData:
     hessian: list[list[float]] = field(default_factory=list)  # symmetric n×n
 
     # Externalized (not-fitted) uncertainties: est_name → sys_name → (up, down)
-    externalized: dict[str, dict[str, tuple[float, float]]] = field(default_factory=dict)
+    externalized: dict[str, dict[str, tuple[float, float]]] = field(
+        default_factory=dict
+    )
     # Just the names of the externalised systematics in order
     ext_sys_names: list[str] = field(default_factory=list)
 
@@ -231,6 +238,7 @@ class MeasurementFileData:
 @dataclass
 class ScanRange:
     """Correlation scan specification for a single (a, b) pair."""
+
     name_a: str = ""
     name_b: str = ""
     nominal: float = 0.0
@@ -241,6 +249,7 @@ class ScanRange:
 @dataclass
 class CorrelationScan:
     """One named set of scan ranges (may span multiple (a,b) pairs)."""
+
     name: str = ""
     ranges: list[ScanRange] = field(default_factory=list)
 
@@ -248,6 +257,7 @@ class CorrelationScan:
 @dataclass
 class ConfigData:
     """Raw data read from the top-level config file."""
+
     is_differential: bool = False
     normalise: bool = False
 
@@ -267,6 +277,7 @@ class ConfigData:
 # Measurement file parser
 # ---------------------------------------------------------------------------
 
+
 def parse_measurement_file(path: str | Path) -> MeasurementFileData:
     """Parse a Convino measurement file and return raw data."""
     path = Path(path)
@@ -274,14 +285,14 @@ def parse_measurement_file(path: str | Path) -> MeasurementFileData:
     blocks = _read_blocks(path)
 
     # ---- Hessian block ------------------------------------------------
-    if 'hessian' in blocks and blocks['hessian']:
-        names, _, matrix = _parse_triangular(blocks['hessian'])
+    if "hessian" in blocks and blocks["hessian"]:
+        names, _, matrix = _parse_triangular(blocks["hessian"])
         data.hessian_names = names
         data.hessian = matrix
 
     # ---- Correlation matrix block -------------------------------------
-    elif 'correlation matrix' in blocks and blocks['correlation matrix']:
-        lines = blocks['correlation matrix']
+    elif "correlation matrix" in blocks and blocks["correlation matrix"]:
+        lines = blocks["correlation matrix"]
         names, constraints, corr = _parse_triangular(lines)
         n = len(names)
 
@@ -305,23 +316,27 @@ def parse_measurement_file(path: str | Path) -> MeasurementFileData:
         # covariance is rejected rather than silently inverted into a non-PD
         # Hessian.
         if float(np.linalg.eigvalsh(C).min()) <= 0:
-            raise ValueError(f"{path}: covariance from correlation matrix not positive definite")
+            raise ValueError(
+                f"{path}: covariance from correlation matrix not positive definite"
+            )
         try:
             H = np.linalg.inv(C)
         except np.linalg.LinAlgError as err:
-            raise ValueError(f"{path}: correlation matrix covariance not invertible") from err
+            raise ValueError(
+                f"{path}: correlation matrix covariance not invertible"
+            ) from err
 
         data.hessian_names = names
         data.hessian = H.tolist()
 
     # ---- Not-fitted block --------------------------------------------
-    if 'not fitted' in blocks and blocks['not fitted']:
-        lines = blocks['not fitted']
+    if "not fitted" in blocks and blocks["not fitted"]:
+        lines = blocks["not fitted"]
         # First line is the header. Each header column maps positionally to a
         # value column of the data rows (after the leading estimate name). The
         # 'stat' column may appear at any position, not only last.
         header = lines[0].split()
-        sys_names = [h for h in header if h != 'stat']
+        sys_names = [h for h in header if h != "stat"]
         data.ext_sys_names = sys_names
 
         ext: dict[str, dict[str, tuple[float, float]]] = {}
@@ -337,7 +352,7 @@ def parse_measurement_file(path: str | Path) -> MeasurementFileData:
                 tok_idx = col + 1  # skip the leading estimate name
                 if tok_idx >= len(tokens):
                     break
-                if hname == 'stat':
+                if hname == "stat":
                     data.stat_errors[est_name] = float(tokens[tok_idx])
                 else:
                     ext[est_name][hname] = _parse_uncertainty_str(tokens[tok_idx])
@@ -345,36 +360,36 @@ def parse_measurement_file(path: str | Path) -> MeasurementFileData:
         data.externalized = ext
 
     # ---- Estimates block ----------------------------------------------
-    if 'estimates' in blocks:
-        lines = blocks['estimates']
+    if "estimates" in blocks:
+        lines = blocks["estimates"]
         # Parse key=value pairs
         kv = _parse_kv(lines)
-        n_est = int(kv.get('n_estimates', 0))
+        n_est = int(kv.get("n_estimates", 0))
         for i in range(n_est):
-            name = kv[f'name_{i}'].strip().rstrip(';')
-            val_str = kv[f'value_{i}'].strip().rstrip(';')
+            name = kv[f"name_{i}"].strip().rstrip(";")
+            val_str = kv[f"value_{i}"].strip().rstrip(";")
             data.estimates[name] = float(val_str)
 
     # ---- Systematics block -------------------------------------------
-    if 'systematics' in blocks:
-        lines = blocks['systematics']
+    if "systematics" in blocks:
+        lines = blocks["systematics"]
         for line in lines:
-            if '=' not in line:
+            if "=" not in line:
                 continue
-            parts = line.split('=', 1)
+            parts = line.split("=", 1)
             name = parts[0].strip()
             stype = parts[1].strip().lower()
-            if stype == 'free':
+            if stype == "free":
                 data.prior_free.add(name)
             else:
                 data.sys_types[name] = stype
 
     # ---- Nuisance values block ---------------------------------------
-    if 'nuisance values' in blocks:
-        for line in blocks['nuisance values']:
-            if '=' not in line:
+    if "nuisance values" in blocks:
+        for line in blocks["nuisance values"]:
+            if "=" not in line:
                 continue
-            name, val = line.split('=', 1)
+            name, val = line.split("=", 1)
             data.nuisance_values[name.strip()] = float(val)
 
     return data
@@ -384,6 +399,7 @@ def parse_measurement_file(path: str | Path) -> MeasurementFileData:
 # Config file parser
 # ---------------------------------------------------------------------------
 
+
 def parse_config_file(path: str | Path) -> ConfigData:
     """Parse a Convino top-level configuration file."""
     path = Path(path)
@@ -392,42 +408,42 @@ def parse_config_file(path: str | Path) -> ConfigData:
     cfg = ConfigData()
 
     # ---- Global block -------------------------------------------------
-    if 'global' in blocks:
-        kv = _parse_kv(blocks['global'])
-        cfg.is_differential = _parse_bool(kv.get('isdifferential', 'false'))
-        cfg.normalise = _parse_bool(kv.get('normalise', 'false'))
+    if "global" in blocks:
+        kv = _parse_kv(blocks["global"])
+        cfg.is_differential = _parse_bool(kv.get("isdifferential", "false"))
+        cfg.normalise = _parse_bool(kv.get("normalise", "false"))
 
     # ---- Inputs block ------------------------------------------------
-    if 'inputs' in blocks:
-        kv = _parse_kv(blocks['inputs'])
-        n = int(kv.get('nfiles', 0))
+    if "inputs" in blocks:
+        kv = _parse_kv(blocks["inputs"])
+        n = int(kv.get("nfiles", 0))
         for i in range(n):
-            rel = kv[f'file{i}'].strip()
+            rel = kv[f"file{i}"].strip()
             cfg.measurement_files.append(str(config_dir / rel))
 
     # ---- Observables block -------------------------------------------
-    if 'observables' in blocks:
-        for line in blocks['observables']:
-            if '=' not in line:
+    if "observables" in blocks:
+        for line in blocks["observables"]:
+            if "=" not in line:
                 continue
-            parts = line.split('=', 1)
+            parts = line.split("=", 1)
             combined_name = parts[0].strip()
             rhs = parts[1].strip()
-            contributors = [s.strip() for s in rhs.split('+') if s.strip()]
+            contributors = [s.strip() for s in rhs.split("+") if s.strip()]
             cfg.observables[combined_name] = contributors
 
     # ---- Correlations block ------------------------------------------
-    if 'correlations' in blocks:
-        _parse_correlations(blocks['correlations'], cfg, config_dir)
+    if "correlations" in blocks:
+        _parse_correlations(blocks["correlations"], cfg, config_dir)
 
     # ---- Uncertainty impacts block -----------------------------------
-    if 'uncertainty impacts' in blocks:
-        for line in blocks['uncertainty impacts']:
-            if '=' not in line:
+    if "uncertainty impacts" in blocks:
+        for line in blocks["uncertainty impacts"]:
+            if "=" not in line:
                 continue
-            parts = line.split('=', 1)
+            parts = line.split("=", 1)
             label = parts[0].strip()
-            members = [s.strip() for s in parts[1].split('+') if s.strip()]
+            members = [s.strip() for s in parts[1].split("+") if s.strip()]
             cfg.impact_groups[label] = members
 
     return cfg
@@ -437,19 +453,20 @@ def parse_config_file(path: str | Path) -> ConfigData:
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _parse_kv(lines: list[str]) -> dict[str, str]:
     """Return a dict of key → value from key=value lines (case-insensitive keys)."""
     kv: dict[str, str] = {}
     for line in lines:
-        if '=' not in line:
+        if "=" not in line:
             continue
-        parts = line.split('=', 1)
+        parts = line.split("=", 1)
         kv[parts[0].strip().lower()] = parts[1].strip()
     return kv
 
 
 def _parse_bool(s: str) -> bool:
-    return s.strip().lower() in ('true', '1', 'yes')
+    return s.strip().lower() in ("true", "1", "yes")
 
 
 def _parse_correlations(lines: list[str], cfg: ConfigData, base_dir: Path) -> None:
@@ -462,31 +479,31 @@ def _parse_correlations(lines: list[str], cfg: ConfigData, base_dir: Path) -> No
     Scan range is optional: "(0.2)" with no "&" means low=high=nominal (no scan).
     """
     for line in lines:
-        if '=' not in line:
+        if "=" not in line:
             continue
-        parts = line.split('=', 1)
+        parts = line.split("=", 1)
         name_a = parts[0].strip()
         rhs = parts[1].strip()
 
         scan = CorrelationScan(name=name_a)
 
-        contributions = [c.strip() for c in rhs.split('+') if c.strip()]
+        contributions = [c.strip() for c in rhs.split("+") if c.strip()]
         for contrib in contributions:
             # Split on ')' to separate "(nominal & low : high)" from "sys_b"
-            parens_end = contrib.find(')')
+            parens_end = contrib.find(")")
             if parens_end < 0:
                 continue
-            corr_spec = contrib[:parens_end + 1].strip().strip('()')
-            name_b = contrib[parens_end + 1:].strip()
+            corr_spec = contrib[: parens_end + 1].strip().strip("()")
+            name_b = contrib[parens_end + 1 :].strip()
             if not name_b:
                 continue
 
             sr = ScanRange(name_a=name_a, name_b=name_b)
-            if '&' in corr_spec:
-                nom_part, range_part = corr_spec.split('&', 1)
+            if "&" in corr_spec:
+                nom_part, range_part = corr_spec.split("&", 1)
                 sr.nominal = float(nom_part.strip())
-                if ':' in range_part:
-                    low_s, high_s = range_part.split(':', 1)
+                if ":" in range_part:
+                    low_s, high_s = range_part.split(":", 1)
                     sr.low = float(low_s.strip())
                     sr.high = float(high_s.strip())
                 else:

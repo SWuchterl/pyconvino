@@ -68,24 +68,27 @@ from .parser import MeasurementFileData
 @dataclass
 class MeasurementSetup:
     """Pre-computed matrices for a single measurement."""
-    x_meas: np.ndarray        # central values, shape (nest,)
-    LM: np.ndarray            # observable Hessian, shape (nest, nest)
-    Lk_up: np.ndarray         # systematic responses (upward), shape (nest, nlamb)
-    Lk_down: np.ndarray       # systematic responses (downward), shape (nest, nlamb)
-    LD: np.ndarray            # residual systematic matrix, shape (nlamb, nlamb)
 
-    est_names: list[str]      # estimate names in row order of LM / x_meas
-    sys_names: list[str]      # systematic names in col order of Lk / LD
-    sys_types: list[str]      # "absolute" or "relative" per systematic
+    x_meas: np.ndarray  # central values, shape (nest,)
+    LM: np.ndarray  # observable Hessian, shape (nest, nest)
+    Lk_up: np.ndarray  # systematic responses (upward), shape (nest, nlamb)
+    Lk_down: np.ndarray  # systematic responses (downward), shape (nest, nlamb)
+    LD: np.ndarray  # residual systematic matrix, shape (nlamb, nlamb)
+
+    est_names: list[str]  # estimate names in row order of LM / x_meas
+    sys_names: list[str]  # systematic names in col order of Lk / LD
+    sys_types: list[str]  # "absolute" or "relative" per systematic
 
     # Global parameter-vector indices (filled by Combiner, initially empty)
     est_global_idx: list[int] = field(default_factory=list)
     sys_global_idx: list[int] = field(default_factory=list)
 
-    lambda_hat: np.ndarray = None    # input post-fit nuisance values, (nlamb,); default 0
-    prior_diag: np.ndarray = None    # prior precision P_i of the input fit, (nlamb,); default 1
-    chi2_offset: float = 0.0         # lambda_hat^T P LD^+ P lambda_hat
-    chi2_standalone: float = 0.0     # chi2 of this input alone at its own best fit
+    lambda_hat: np.ndarray = None  # input post-fit nuisance values, (nlamb,); default 0
+    prior_diag: np.ndarray = (
+        None  # prior precision P_i of the input fit, (nlamb,); default 1
+    )
+    chi2_offset: float = 0.0  # lambda_hat^T P LD^+ P lambda_hat
+    chi2_standalone: float = 0.0  # chi2 of this input alone at its own best fit
 
     def __post_init__(self):
         nlamb = len(self.sys_names)
@@ -127,8 +130,10 @@ def setup_measurement(
     nlamb = len(all_sys_names)
 
     hess_sys_set = set(hess_sys_names)
-    for label, names in (("[nuisance values]", data.nuisance_values),
-                         ("free", data.prior_free)):
+    for label, names in (
+        ("[nuisance values]", data.nuisance_values),
+        ("free", data.prior_free),
+    ):
         unknown = sorted(set(names) - hess_sys_set)
         if unknown:
             raise ValueError(
@@ -138,7 +143,9 @@ def setup_measurement(
             )
 
     x_meas = np.array([data.estimates[n] for n in all_est_names], dtype=float)
-    stat_errs = np.array([data.stat_errors.get(n, 0.0) for n in all_est_names], dtype=float)
+    stat_errs = np.array(
+        [data.stat_errors.get(n, 0.0) for n in all_est_names], dtype=float
+    )
 
     # ------------------------------------------------------------------
     # Reorder Hessian: estimates before systematics
@@ -193,7 +200,10 @@ def setup_measurement(
     for i, sys_name in enumerate(ext_sys_names):
         col = nHlamb + i
         for mu, est_name in enumerate(all_est_names):
-            if est_name in data.externalized and sys_name in data.externalized[est_name]:
+            if (
+                est_name in data.externalized
+                and sys_name in data.externalized[est_name]
+            ):
                 Lk_up[mu, col], Lk_down[mu, col] = data.externalized[est_name][sys_name]
 
     # ------------------------------------------------------------------
@@ -203,17 +213,13 @@ def setup_measurement(
         [0.0 if n in data.prior_free else 1.0 for n in all_sys_names], dtype=float
     )
     nuis = data.nuisance_values if use_nuisance_values else {}
-    lambda_hat = np.array(
-        [nuis.get(n, 0.0) for n in all_sys_names], dtype=float
-    )
+    lambda_hat = np.array([nuis.get(n, 0.0) for n in all_sys_names], dtype=float)
 
     LD = np.zeros((nlamb, nlamb))
     if nHlamb > 0:
         # LD = tildeC - kappa^T @ TM @ kappa - diag(P)
         LD[:nHlamb, :nHlamb] = (
-            tildeC
-            - kappa.T @ TM @ kappa
-            - np.diag(prior_diag[:nHlamb])
+            tildeC - kappa.T @ TM @ kappa - np.diag(prior_diag[:nHlamb])
         )
 
     # Sanity check matching C++ diagnostic

@@ -56,6 +56,7 @@ jax.config.update("jax_enable_x64", True)
 @dataclass
 class CombinationResult:
     """All quantities needed to produce the output text file."""
+
     # Minimizer outcome
     chi2_min: float = 0.0
     converged: bool = False
@@ -105,7 +106,9 @@ class CombinationResult:
     pre_sys_corr: np.ndarray = field(default_factory=lambda: np.zeros((0, 0)))
 
     # Impact groups: label → (abs_impact_up, abs_impact_down) per combined obs
-    impact_groups: dict[str, tuple[np.ndarray, np.ndarray]] = field(default_factory=dict)
+    impact_groups: dict[str, tuple[np.ndarray, np.ndarray]] = field(
+        default_factory=dict
+    )
 
     # Per-group covariance of the combined observables with that group frozen
     # (nest × nest). Printed as [covariance matrix for merged impacts].
@@ -158,7 +161,9 @@ class CombinationResult:
     # Per-individual-systematic impacts/frozen-covariance (one entry per
     # systematic name, independent of any user-defined [uncertainty impacts]
     # groups in impact_groups/impact_cov_groups above).
-    impact_per_systematic: dict[str, tuple[np.ndarray, np.ndarray]] = field(default_factory=dict)
+    impact_per_systematic: dict[str, tuple[np.ndarray, np.ndarray]] = field(
+        default_factory=dict
+    )
     cov_per_systematic: dict[str, np.ndarray] = field(default_factory=dict)
 
     # Signed linear response matrix: impact_matrix[b, i] is the shift in
@@ -241,7 +246,9 @@ class Combiner:
     def _vtime(self, label: str, t0: float) -> None:
         """Print elapsed time since `t0` if `self.verbose` (CLI --verbose)."""
         if self.verbose:
-            print(f"[convino] {label}: {time.perf_counter() - t0:.3f}s", file=sys.stderr)
+            print(
+                f"[convino] {label}: {time.perf_counter() - t0:.3f}s", file=sys.stderr
+            )
 
     # ------------------------------------------------------------------
     # Public API
@@ -261,7 +268,12 @@ class Combiner:
         all_sys_names, combined_names, nsys, nest = self._assign_global_indices(setups)
 
         # 3. Build prior inverse-covariance
-        free_names = {n for s in setups for n, p in zip(s.sys_names, s.prior_diag, strict=True) if p == 0}
+        free_names = {
+            n
+            for s in setups
+            for n, p in zip(s.sys_names, s.prior_diag, strict=True)
+            if p == 0
+        }
         inv_C, C_exact = self._build_prior(all_sys_names, free_names)
         inv_C_eff = self._effective_prior(setups, inv_C)
         self._vtime("setup + prior", t0)
@@ -293,17 +305,14 @@ class Combiner:
         # minimizer strategy to use, in addition to its other use below (MINOS
         # vs. HESSE errors).
         responses_symmetric = all(
-            np.allclose(s.Lk_up, -s.Lk_down, atol=1e-9, rtol=1e-6)
-            for s in setups
+            np.allclose(s.Lk_up, -s.Lk_down, atol=1e-9, rtol=1e-6) for s in setups
         )
         # No "relative" systematic anywhere: relative systematics are
         # multiplicative on x_comb (see the rel_factor branch in
         # objective._x_shifted), which is nonlinear in pars even when
         # symmetric. ("lognormal" is already rejected earlier in
         # make_chi2/setup_measurement, so only "absolute"/"relative" remain.)
-        all_absolute = all(
-            t == "absolute" for s in setups for t in s.sys_types
-        )
+        all_absolute = all(t == "absolute" for s in setups for t in s.sys_types)
         # Whenever the chi2 is an exact quadratic form in pars (symmetric
         # responses, no relative systematics, and not Pearson-rescaled — see
         # the use_pearson branch in objective.chi2, which makes LM_eff depend
@@ -311,7 +320,9 @@ class Combiner:
         # exactly linear: grad(p) = H @ (p - p_min) for ANY p. The true
         # minimum is then reachable from any starting point in one linear
         # solve, with no iterative optimizer needed at all.
-        quadratic_fast_path = responses_symmetric and all_absolute and not self.use_pearson
+        quadratic_fast_path = (
+            responses_symmetric and all_absolute and not self.use_pearson
+        )
 
         # 5. Initial parameter vector
         x0 = self._initial_params(setups, nsys, nest, combined_names)
@@ -332,8 +343,11 @@ class Combiner:
         # includes that one-time compile cost, not just optimizer iterations.
         t0 = time.perf_counter()
         pars_best, chi2_min, converged = self._minimize(
-            value_and_grad_fn, x0, hess_fn=hess_fn,
-            quadratic_fast_path=quadratic_fast_path, bounds=bounds,
+            value_and_grad_fn,
+            x0,
+            hess_fn=hess_fn,
+            quadratic_fast_path=quadratic_fast_path,
+            bounds=bounds,
         )
         self._vtime("minimize", t0)
 
@@ -354,7 +368,9 @@ class Combiner:
             cov_fit = 2.0 * scipy_inv(H_fit)
         except np.linalg.LinAlgError:
             cov_fit = np.full_like(H_fit, np.nan)
-            warnings.warn("Post-fit Hessian not invertible; covariance set to NaN", stacklevel=2)
+            warnings.warn(
+                "Post-fit Hessian not invertible; covariance set to NaN", stacklevel=2
+            )
 
         # 7b. Signed response matrix: shift in combined_values[b] for +1σ of
         # nuisance i, from the Hessian cross-block A = -inv(H_xx) @ H_xt.
@@ -432,9 +448,18 @@ class Combiner:
                     label: impact_groups_cfg[label] for label in self.impacts_only
                 }
             impact_groups, impact_cov_groups = self._compute_impacts(
-                chi2_fn, grad_search, pars_best, chi2_min,
-                all_sys_names, combined_err_up, combined_err_down,
-                nsys, nest, corr_est, responses_symmetric, H_fit,
+                chi2_fn,
+                grad_search,
+                pars_best,
+                chi2_min,
+                all_sys_names,
+                combined_err_up,
+                combined_err_down,
+                nsys,
+                nest,
+                corr_est,
+                responses_symmetric,
+                H_fit,
                 impact_groups_cfg,
             )
         else:
@@ -461,9 +486,18 @@ class Combiner:
             }
             per_sys_groups["__stat_only__"] = list(all_sys_names)
             per_sys_impacts, per_sys_covs = self._compute_impacts(
-                chi2_fn, grad_search, pars_best, chi2_min,
-                all_sys_names, combined_err_up, combined_err_down,
-                nsys, nest, corr_est, responses_symmetric, H_fit,
+                chi2_fn,
+                grad_search,
+                pars_best,
+                chi2_min,
+                all_sys_names,
+                combined_err_up,
+                combined_err_down,
+                nsys,
+                nest,
+                corr_est,
+                responses_symmetric,
+                H_fit,
                 per_sys_groups,
                 true_frozen_cov=True,
             )
@@ -505,8 +539,12 @@ class Combiner:
                     wn_sum += wn
                     wm_pull += wm * p
                     wn_pull += wn * p
-                pull_per_group_mean[group_label] = wm_pull / wm_sum if wm_sum > 0 else 0.0
-                pull_per_group_norm[group_label] = wn_pull / wn_sum if wn_sum > 0 else 0.0
+                pull_per_group_mean[group_label] = (
+                    wm_pull / wm_sum if wm_sum > 0 else 0.0
+                )
+                pull_per_group_norm[group_label] = (
+                    wn_pull / wn_sum if wn_sum > 0 else 0.0
+                )
         else:
             pull_per_group_mean = {}
             pull_per_group_norm = {}
@@ -662,7 +700,9 @@ class Combiner:
                 self._vtime(f"scan '{scan.name}' step {step + 1}/{n_steps}", t0)
                 if single_pair:
                     sr0 = scan.ranges[0]
-                    step_values.append(sr0.low + step * (sr0.high - sr0.low) / (n_steps - 1))
+                    step_values.append(
+                        sr0.low + step * (sr0.high - sr0.low) / (n_steps - 1)
+                    )
                 else:
                     step_values.append(step / (n_steps - 1))
 
@@ -714,9 +754,7 @@ class Combiner:
                         f"estimate '{e}' is not listed in any [observables] entry "
                         f"(estimates in this measurement: {ms.est_names})"
                     )
-            ms.est_global_idx = [
-                comb_to_idx[est_to_combined[e]] for e in ms.est_names
-            ]
+            ms.est_global_idx = [comb_to_idx[est_to_combined[e]] for e in ms.est_names]
             ms.sys_global_idx = [sys_to_idx[s] for s in ms.sys_names]
 
         return all_sys_names, combined_names, nsys, nest
@@ -764,7 +802,9 @@ class Combiner:
                 C[ib, ia] = rho
 
         C_exact = C.copy()  # exact user values for display
-        C = _nearest_positive_definite(C, method=self.pd_reg_method, verbose=self.verbose)
+        C = _nearest_positive_definite(
+            C, method=self.pd_reg_method, verbose=self.verbose
+        )
         inv_C = scipy_inv(C)
         for name in sorted(free_names):
             i = name_to_idx[name]
@@ -795,7 +835,9 @@ class Combiner:
         # For each combined observable, average over measurements that contribute.
         # ms.est_global_idx[k] is the combined index of estimate est_names[k]
         # (assigned in _assign_global_indices).
-        idx = np.concatenate([np.asarray(ms.est_global_idx, dtype=int) for ms in setups])
+        idx = np.concatenate(
+            [np.asarray(ms.est_global_idx, dtype=int) for ms in setups]
+        )
         vals = np.concatenate([np.asarray(ms.x_meas, dtype=float) for ms in setups])
         comb_cnt = np.bincount(idx, minlength=nest)
         if (comb_cnt == 0).any():
@@ -818,8 +860,14 @@ class Combiner:
             for i, (lo, hi) in enumerate(bounds)
         )
 
-    def _minimize(self, value_and_grad_fn, x0: np.ndarray, hess_fn=None,
-                  quadratic_fast_path: bool = False, bounds=None):
+    def _minimize(
+        self,
+        value_and_grad_fn,
+        x0: np.ndarray,
+        hess_fn=None,
+        quadratic_fast_path: bool = False,
+        bounds=None,
+    ):
         """
         Find the chi2 minimum.
 
@@ -947,7 +995,9 @@ class Combiner:
 
         return jnp.array(x_best, dtype=jnp.float64), fun_best, converged
 
-    def _minimize_frozen(self, chi2_fn, grad_fn, p_init, frozen_idx, frozen_vals, options):
+    def _minimize_frozen(
+        self, chi2_fn, grad_fn, p_init, frozen_idx, frozen_vals, options
+    ):
         """
         Minimize chi2 over all parameters except `frozen_idx`, which are pinned
         to `frozen_vals` (scalar or array). `grad_fn` (built once by the caller)
@@ -972,8 +1022,9 @@ class Combiner:
         def jac(x_free):
             return np.array(grad_fn(_scatter(x_free)))[free_mask]
 
-        res = minimize(obj, p_init[free_mask], method="L-BFGS-B",
-                       jac=jac, options=options)
+        res = minimize(
+            obj, p_init[free_mask], method="L-BFGS-B", jac=jac, options=options
+        )
         return res
 
     def _profile_error(
@@ -1008,8 +1059,12 @@ class Combiner:
         def profile(v: float) -> float:
             """Minimize chi2 with pars[param_idx] = v (extras frozen)."""
             res = self._minimize_frozen(
-                chi2_fn, grad_fn, pars_arr,
-                [param_idx] + extra_idx, [float(v)] + extra_vals, _opts,
+                chi2_fn,
+                grad_fn,
+                pars_arr,
+                [param_idx] + extra_idx,
+                [float(v)] + extra_vals,
+                _opts,
             )
             return res.fun
 
@@ -1026,26 +1081,41 @@ class Combiner:
         # Upward error
         try:
             bracket_hi = v0 + max(sigma_sym * 5, abs(v0) * 0.1 + 1e-3)
-            eu = brentq(lambda v: profile(v) - target,
-                        v0, bracket_hi,
-                        xtol=_XTOL, rtol=_RTOL, maxiter=_MAXITER) - v0
+            eu = (
+                brentq(
+                    lambda v: profile(v) - target,
+                    v0,
+                    bracket_hi,
+                    xtol=_XTOL,
+                    rtol=_RTOL,
+                    maxiter=_MAXITER,
+                )
+                - v0
+            )
         except Exception:
             warnings.warn(
                 f"profile (upward) error for parameter {param_idx} failed; "
-                "falling back to the symmetric HESSE error", stacklevel=2
+                "falling back to the symmetric HESSE error",
+                stacklevel=2,
             )
             eu = sigma_sym  # fallback
 
         # Downward error
         try:
             bracket_lo = v0 - max(sigma_sym * 5, abs(v0) * 0.1 + 1e-3)
-            ed = v0 - brentq(lambda v: profile(v) - target,
-                             bracket_lo, v0,
-                             xtol=_XTOL, rtol=_RTOL, maxiter=_MAXITER)
+            ed = v0 - brentq(
+                lambda v: profile(v) - target,
+                bracket_lo,
+                v0,
+                xtol=_XTOL,
+                rtol=_RTOL,
+                maxiter=_MAXITER,
+            )
         except Exception:
             warnings.warn(
                 f"profile (downward) error for parameter {param_idx} failed; "
-                "falling back to the symmetric HESSE error", stacklevel=2
+                "falling back to the symmetric HESSE error",
+                stacklevel=2,
             )
             ed = sigma_sym  # fallback
 
@@ -1077,7 +1147,8 @@ class Combiner:
                 f"[convino] input #{k}: {int(neg.sum())} nuisance "
                 f"direction(s) with post-fit variance above the prior (min LD "
                 f"eigenvalue {e.min():.3g}); moved to prior_inv_cov_eff for the "
-                f"global-impacts split (fit unchanged)", stacklevel=2
+                f"global-impacts split (fit unchanged)",
+                stacklevel=2,
             )
         return inv_C_eff
 
@@ -1142,7 +1213,8 @@ class Combiner:
             if not frozen_idx:
                 warnings.warn(
                     f"impact group '{label}' has no members matching any known "
-                    f"systematic ({members}); skipping it", stacklevel=2
+                    f"systematic ({members}); skipping it",
+                    stacklevel=2,
                 )
                 continue
 
@@ -1165,9 +1237,9 @@ class Combiner:
                 cov_restricted = 2.0 * scipy_inv(H_restricted)
                 # HESSE frozen errors = sqrt of the diagonal of the est-block.
                 # Also used as the bracket seed for the profile scan below.
-                err_frozen_up = np.sqrt(np.maximum(
-                    np.diag(cov_restricted)[est_slice], 0.0
-                ))
+                err_frozen_up = np.sqrt(
+                    np.maximum(np.diag(cov_restricted)[est_slice], 0.0)
+                )
                 err_frozen_down = err_frozen_up.copy()
 
                 # When the full errors were obtained by profiling (asymmetric
@@ -1185,7 +1257,11 @@ class Combiner:
                 if not responses_symmetric:
                     frozen_vals = np.array(pars_best, dtype=np.float64)[frozen_idx]
                     res = self._minimize_frozen(
-                        chi2_fn, grad_fn, pars_best, frozen_idx, frozen_vals,
+                        chi2_fn,
+                        grad_fn,
+                        pars_best,
+                        frozen_idx,
+                        frozen_vals,
                         {"maxiter": 2000, "ftol": 1e-14, "gtol": 1e-8},
                     )
                     p_frozen_full = np.array(pars_best, dtype=np.float64)
@@ -1194,8 +1270,12 @@ class Combiner:
                     eu_list, ed_list = [], []
                     for k in range(nest):
                         eu_f, ed_f = self._profile_error(
-                            chi2_fn, grad_fn, p_frozen_full, res.fun,
-                            nsys + k, float(err_frozen_up[k]),
+                            chi2_fn,
+                            grad_fn,
+                            p_frozen_full,
+                            res.fun,
+                            nsys + k,
+                            float(err_frozen_up[k]),
                             extra_frozen_idx=frozen_idx,
                             extra_frozen_vals=list(frozen_vals),
                         )
@@ -1223,8 +1303,10 @@ class Combiner:
                 err_frozen_down = np.full(nest, np.nan)
 
             # Impact in quadrature: sqrt(|err_full^2 - err_frozen^2|)
-            impact_up = np.sqrt(np.maximum(combined_err_up ** 2 - err_frozen_up ** 2, 0.0))
-            impact_down = np.sqrt(np.maximum(combined_err_down ** 2 - err_frozen_down ** 2, 0.0))
+            impact_up = np.sqrt(np.maximum(combined_err_up**2 - err_frozen_up**2, 0.0))
+            impact_down = np.sqrt(
+                np.maximum(combined_err_down**2 - err_frozen_down**2, 0.0)
+            )
             results[label] = (impact_up, impact_down)
             cov_results[label] = est_cov
 
@@ -1268,6 +1350,7 @@ class Combiner:
 # ---------------------------------------------------------------------------
 # Utility
 # ---------------------------------------------------------------------------
+
 
 def _cov_to_corr(cov: np.ndarray, floor: float = 1e-30) -> np.ndarray:
     """Correlation matrix of `cov` (variances floored at `floor`, unit diagonal)."""
@@ -1387,8 +1470,7 @@ def _nearest_positive_definite(
         C_reg = C_reg / np.outer(d, d)
         scale = 1.0 / (1.0 + delta)
         method_msg = (
-            f"diagonal shift δ={delta:.4g}, "
-            f"all correlations scaled by {scale:.6f}"
+            f"diagonal shift δ={delta:.4g}, all correlations scaled by {scale:.6f}"
         )
 
     elif method == "higham":

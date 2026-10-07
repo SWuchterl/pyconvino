@@ -56,38 +56,44 @@ def make_chi2(
         # Only "absolute" and "relative" are implemented. "lognormal" is
         # parsed, but the C++ Convino never finished it either, so fail
         # instead of silently treating it as "absolute".
-        bad = {n: t for n, t in zip(ms.sys_names, ms.sys_types, strict=True)
-               if t not in ("absolute", "relative")}
+        bad = {
+            n: t
+            for n, t in zip(ms.sys_names, ms.sys_types, strict=True)
+            if t not in ("absolute", "relative")
+        }
         if bad:
             raise NotImplementedError(
                 f"Systematic(s) {sorted(bad)} use unsupported type(s) "
                 f"{sorted(set(bad.values()))}; only 'absolute' and 'relative' "
                 "are implemented ('lognormal' is not)."
             )
-        meas_jax.append({
-            "x_meas":   jnp.array(ms.x_meas),
-            "LM":       jnp.array(ms.LM),
-            "Lk_up":    jnp.array(ms.Lk_up),   # (nest_local, nlamb_local)
-            "Lk_down":  jnp.array(ms.Lk_down),
-            "LD":       jnp.array(ms.LD),
-            "est_idx":  jnp.array(ms.est_global_idx, dtype=jnp.int32),
-            "sys_idx":  jnp.array(ms.sys_global_idx, dtype=jnp.int32),
-            "rel_mask": jnp.array([t == "relative" for t in ms.sys_types],
-                                  dtype=bool),
-            # Gated so inputs without [nuisance values] keep the original,
-            # bit-identical arithmetic.
-            "has_pulls": bool(np.any(ms.lambda_hat)),
-            "lam_hat":  jnp.array(ms.lambda_hat),
-            "p_lam_hat": jnp.array(ms.prior_diag * ms.lambda_hat),
-            "offset":   float(ms.chi2_offset),
-        })
+        meas_jax.append(
+            {
+                "x_meas": jnp.array(ms.x_meas),
+                "LM": jnp.array(ms.LM),
+                "Lk_up": jnp.array(ms.Lk_up),  # (nest_local, nlamb_local)
+                "Lk_down": jnp.array(ms.Lk_down),
+                "LD": jnp.array(ms.LD),
+                "est_idx": jnp.array(ms.est_global_idx, dtype=jnp.int32),
+                "sys_idx": jnp.array(ms.sys_global_idx, dtype=jnp.int32),
+                "rel_mask": jnp.array(
+                    [t == "relative" for t in ms.sys_types], dtype=bool
+                ),
+                # Gated so inputs without [nuisance values] keep the original,
+                # bit-identical arithmetic.
+                "has_pulls": bool(np.any(ms.lambda_hat)),
+                "lam_hat": jnp.array(ms.lambda_hat),
+                "p_lam_hat": jnp.array(ms.prior_diag * ms.lambda_hat),
+                "offset": float(ms.chi2_offset),
+            }
+        )
     inv_C_jax = jnp.array(inv_C)
     _eps = jnp.asarray(np.finfo(float).tiny)
 
     def _x_shifted(x_comb_local, x_meas, Lk_up, Lk_down, lambdas, rel_mask):
         """Vectorised systematic shift: relative first, then absolute."""
         # Lk_eval[mu, i]: shape (nest_local, nlamb_local)
-        lam = lambdas[jnp.newaxis, :]           # (1, nlamb)
+        lam = lambdas[jnp.newaxis, :]  # (1, nlamb)
         k_eval = jnp.where(
             lam >= 0.0,
             Lk_up * lam,
@@ -115,20 +121,27 @@ def make_chi2(
 
         for md in meas_jax:
             x_meas, LM = md["x_meas"], md["LM"]
-            x_comb_local  = pars[nsys + md["est_idx"]]   # (nest_local,)
-            lambdas_local = pars[md["sys_idx"]]          # (nlamb_local,)
+            x_comb_local = pars[nsys + md["est_idx"]]  # (nest_local,)
+            lambdas_local = pars[md["sys_idx"]]  # (nlamb_local,)
             if md["has_pulls"]:
                 lambdas_local = lambdas_local - md["lam_hat"]
 
-            x_sh = _x_shifted(x_comb_local, x_meas, md["Lk_up"], md["Lk_down"],
-                               lambdas_local, md["rel_mask"])
+            x_sh = _x_shifted(
+                x_comb_local,
+                x_meas,
+                md["Lk_up"],
+                md["Lk_down"],
+                lambdas_local,
+                md["rel_mask"],
+            )
             residual = x_meas - x_sh  # (nest_local,)
 
             # Observable chi2
             if use_pearson:
-                x_safe = jnp.where(jnp.abs(x_sh) > 0, x_sh,
-                                   jnp.sign(x_sh + _eps) * _eps)
-                scale = jnp.abs(x_meas / x_safe)           # (nest_local,)
+                x_safe = jnp.where(
+                    jnp.abs(x_sh) > 0, x_sh, jnp.sign(x_sh + _eps) * _eps
+                )
+                scale = jnp.abs(x_meas / x_safe)  # (nest_local,)
                 scale_mat = jnp.sqrt(jnp.outer(scale, scale))
                 LM_eff = LM * scale_mat
             else:

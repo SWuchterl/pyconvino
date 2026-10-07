@@ -43,7 +43,8 @@ class FrozenCovAndPriorEffTest(unittest.TestCase):
         self.assertGreater(np.abs(Ve - V).max(), 1e-3)
         self.assertGreater(np.linalg.eigvalsh(Ve).min(), 0.0)
         H = 2.0 * np.linalg.inv(np.asarray(r.cov_full))
-        Hd = H.copy(); Hd[:ns, :ns] -= 2.0 * Ve
+        Hd = H.copy()
+        Hd[:ns, :ns] -= 2.0 * Ve
         e = np.linalg.eigvalsh(0.5 * (Hd + Hd.T))
         self.assertGreater(e.min(), -1e-8 * e.max())
         # global stat >= frozen stat for every observable
@@ -53,7 +54,9 @@ class FrozenCovAndPriorEffTest(unittest.TestCase):
         self.assertTrue(any("prior_inv_cov_eff" in m for m in self.cms_warn))
 
     def test_prior_eff_equals_prior_without_negative_ld(self):
-        np.testing.assert_array_equal(self.atl.prior_inv_cov_eff, self.atl.prior_inv_cov)
+        np.testing.assert_array_equal(
+            self.atl.prior_inv_cov_eff, self.atl.prior_inv_cov
+        )
 
 
 if __name__ == "__main__":

@@ -37,9 +37,7 @@ _SQUARED = {"impact_per_sys_up", "impact_per_sys_down"}
 class RegressionTest(unittest.TestCase):
     def _check_setup(self, name: str) -> None:
         if name in SLOW_SETUPS and not _RUN_SLOW:
-            self.skipTest(
-                f"slow setup '{name}'; set CONVINO_SLOW_TESTS=1 to run it"
-            )
+            self.skipTest(f"slow setup '{name}'; set CONVINO_SLOW_TESTS=1 to run it")
         gpath = golden_path(name)
         if not gpath.exists():
             self.skipTest(
@@ -52,19 +50,19 @@ class RegressionTest(unittest.TestCase):
         # Every golden array must still be produced (a golden may store a
         # subset — large derived matrices are omitted for slow setups).
         missing = set(golden.files) - set(actual)
-        self.assertFalse(missing, f"{name}: golden arrays no longer produced: {missing}")
+        self.assertFalse(
+            missing, f"{name}: golden arrays no longer produced: {missing}"
+        )
 
         for key in golden.files:
             with self.subTest(setup=name, array=key):
                 exp = golden[key]
                 got = np.asarray(actual[key])
-                self.assertEqual(exp.shape, got.shape,
-                                 f"{name}/{key}: shape changed")
+                self.assertEqual(exp.shape, got.shape, f"{name}/{key}: shape changed")
 
                 if exp.dtype.kind in ("U", "S", "b"):
                     # strings (impact labels) / bools (converged): exact match
-                    self.assertTrue(np.array_equal(exp, got),
-                                    f"{name}/{key}: changed")
+                    self.assertTrue(np.array_equal(exp, got), f"{name}/{key}: changed")
                 else:
                     tol = _TOL.get(key, _DEFAULT_TOL)
                     if key in _SQUARED:
@@ -85,6 +83,7 @@ class RegressionTest(unittest.TestCase):
 def _make_test(name: str):
     def test(self):
         self._check_setup(name)
+
     test.__name__ = f"test_{name}"
     return test
 

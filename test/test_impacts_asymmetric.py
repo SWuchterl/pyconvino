@@ -74,13 +74,16 @@ _TIGHT_IMPACTS_CPP = {
 # Systematics from exampleMeasurement3.txt: true impact ~0 (noise-floor regime,
 # see module docstring) -- only checked for "small", not matched to C++.
 _NOISE_FLOOR_SYS = ["sys_a3", "sys_b3", "sys_c3", "sys_d3", "sys_e3"]
-_NOISE_FLOOR_CEILING_PCT = 0.1  # generous vs. the largest C++/Python value seen (~0.045%)
+_NOISE_FLOOR_CEILING_PCT = (
+    0.1  # generous vs. the largest C++/Python value seen (~0.045%)
+)
 
 
 def _parse_simple_impact_table(text: str) -> dict[str, tuple[float, float]]:
     m = re.search(
         r"\[simple impact table: name, impact \[%\]\](.*?)\[end simple impact table",
-        text, re.S,
+        text,
+        re.S,
     )
     table: dict[str, tuple[float, float]] = {}
     for line in m.group(1).strip().splitlines()[1:]:  # skip header row
@@ -90,7 +93,9 @@ def _parse_simple_impact_table(text: str) -> dict[str, tuple[float, float]]:
     return table
 
 
-@unittest.skipUnless(_RUN_SLOW, "asymmetric impacts path is slow; set CONVINO_SLOW_TESTS=1")
+@unittest.skipUnless(
+    _RUN_SLOW, "asymmetric impacts path is slow; set CONVINO_SLOW_TESTS=1"
+)
 class AsymmetricImpactsTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -106,7 +111,9 @@ class AsymmetricImpactsTest(unittest.TestCase):
             i = r.combined_names.index(name)
             self.assertAlmostEqual(r.combined_values[i], val_cpp, delta=val_cpp * 1e-3)
             self.assertAlmostEqual(r.combined_err_up[i], up_cpp, delta=up_cpp * 1e-2)
-            self.assertAlmostEqual(r.combined_err_down[i], down_cpp, delta=down_cpp * 1e-2)
+            self.assertAlmostEqual(
+                r.combined_err_down[i], down_cpp, delta=down_cpp * 1e-2
+            )
 
     def test_dominant_systematic_impacts_match_cpp(self):
         # 1% relative margin: observed C++/Python agreement here is <0.1%.

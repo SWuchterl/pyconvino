@@ -62,11 +62,15 @@ combined = measA + measB
 
 def _write_setup(tdp: Path, correlations_line: str) -> Path:
     (tdp / "measA.txt").write_text(
-        _MEASUREMENT_TEMPLATE.format(name="measA", value=100.0, sys="sysA", resp=5.0, stat=2.0),
+        _MEASUREMENT_TEMPLATE.format(
+            name="measA", value=100.0, sys="sysA", resp=5.0, stat=2.0
+        ),
         encoding="utf-8",
     )
     (tdp / "measB.txt").write_text(
-        _MEASUREMENT_TEMPLATE.format(name="measB", value=104.0, sys="sysB", resp=5.0, stat=2.0),
+        _MEASUREMENT_TEMPLATE.format(
+            name="measB", value=104.0, sys="sysB", resp=5.0, stat=2.0
+        ),
         encoding="utf-8",
     )
     config_path = tdp / "config.txt"
@@ -79,9 +83,7 @@ def _write_setup(tdp: Path, correlations_line: str) -> Path:
 class CorrelationScanTest(unittest.TestCase):
     def test_scan_sweeps_the_prior_correlation_exactly(self):
         with tempfile.TemporaryDirectory() as td:
-            config_path = _write_setup(
-                Path(td), "sysA = (0.0 & -0.9 : 0.9) sysB"
-            )
+            config_path = _write_setup(Path(td), "sysA = (0.0 & -0.9 : 0.9) sysB")
             scan_results = Combiner.from_config(str(config_path)).scan_correlations()
 
         self.assertEqual(set(scan_results), {"sysA"})
@@ -95,7 +97,9 @@ class CorrelationScanTest(unittest.TestCase):
             ib = res.sys_names.index("sysB")
             # The swept value lands in the prior exactly (it's a direct
             # assignment into the prior covariance, not a fitted quantity).
-            self.assertAlmostEqual(float(res.pre_sys_corr[ia, ib]), float(val), places=10)
+            self.assertAlmostEqual(
+                float(res.pre_sys_corr[ia, ib]), float(val), places=10
+            )
 
         # Two measurements sharing a positively-correlated systematic gain
         # less from averaging than when anti-correlated: the combined error
@@ -111,20 +115,16 @@ class CorrelationScanTest(unittest.TestCase):
 
     def test_compute_impacts_defaults_to_false_during_scan(self):
         with tempfile.TemporaryDirectory() as td:
-            config_path = _write_setup(
-                Path(td), "sysA = (0.0 & -0.9 : 0.9) sysB"
-            )
-            _, steps = Combiner.from_config(
-                str(config_path)
-            ).scan_correlations()["sysA"]
+            config_path = _write_setup(Path(td), "sysA = (0.0 & -0.9 : 0.9) sysB")
+            _, steps = Combiner.from_config(str(config_path)).scan_correlations()[
+                "sysA"
+            ]
         for res in steps:
             self.assertEqual(res.impact_groups, {})
 
     def test_n_steps_below_two_raises(self):
         with tempfile.TemporaryDirectory() as td:
-            config_path = _write_setup(
-                Path(td), "sysA = (0.0 & -0.9 : 0.9) sysB"
-            )
+            config_path = _write_setup(Path(td), "sysA = (0.0 & -0.9 : 0.9) sysB")
             combiner = Combiner.from_config(str(config_path))
         with self.assertRaises(ValueError):
             combiner.scan_correlations(n_steps=1)

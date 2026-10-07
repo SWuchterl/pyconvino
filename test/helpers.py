@@ -99,7 +99,9 @@ def result_to_arrays(result) -> dict[str, np.ndarray]:
     # with the same golden-regression net as everything else.
     out["stat_only_covariance"] = np.asarray(result.stat_only_covariance, dtype=float)
     out["total_syst_impact_up"] = np.asarray(result.total_syst_impact_up, dtype=float)
-    out["total_syst_impact_down"] = np.asarray(result.total_syst_impact_down, dtype=float)
+    out["total_syst_impact_down"] = np.asarray(
+        result.total_syst_impact_down, dtype=float
+    )
 
     sys_labels = sorted(result.impact_per_systematic.keys())
     if sys_labels:
@@ -150,20 +152,24 @@ def make_fixture_result():
     nsys, nest = 3, 2
     all_names = sys_names + comb_names
 
-    pre_sys_corr = np.array([
-        [1.0, 0.3, 0.0],
-        [0.3, 1.0, -0.2],
-        [0.0, -0.2, 1.0],
-    ])
+    pre_sys_corr = np.array(
+        [
+            [1.0, 0.3, 0.0],
+            [0.3, 1.0, -0.2],
+            [0.0, -0.2, 1.0],
+        ]
+    )
 
     # A plausible 5x5 post-fit correlation (sys block, est block, cross terms).
-    corr_full = np.array([
-        [1.00, 0.25, 0.05, 0.40, -0.10],
-        [0.25, 1.00, -0.15, 0.20, 0.30],
-        [0.05, -0.15, 1.00, -0.05, 0.12],
-        [0.40, 0.20, -0.05, 1.00, 0.50],
-        [-0.10, 0.30, 0.12, 0.50, 1.00],
-    ])
+    corr_full = np.array(
+        [
+            [1.00, 0.25, 0.05, 0.40, -0.10],
+            [0.25, 1.00, -0.15, 0.20, 0.30],
+            [0.05, -0.15, 1.00, -0.05, 0.12],
+            [0.40, 0.20, -0.05, 1.00, 0.50],
+            [-0.10, 0.30, 0.12, 0.50, 1.00],
+        ]
+    )
     std = np.array([0.8, 1.1, 0.6, 12.0, 7.5])
     cov_full = corr_full * np.outer(std, std)
 
@@ -173,8 +179,7 @@ def make_fixture_result():
 
     impact_up = np.array([5.1, 8.2])
     impact_down = np.array([5.0, 8.4])
-    impact_cov = np.array([[5.1**2, 0.3 * 5.1 * 8.2],
-                           [0.3 * 5.1 * 8.2, 8.2**2]])
+    impact_cov = np.array([[5.1**2, 0.3 * 5.1 * 8.2], [0.3 * 5.1 * 8.2, 8.2**2]])
 
     fixture_ndf = 7
     return CombinationResult(

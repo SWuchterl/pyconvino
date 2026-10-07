@@ -23,73 +23,86 @@ def main():
     )
     parser.add_argument("config", help="Path to the config file")
     parser.add_argument(
-        "--prefix", default="convino",
-        help="Output file prefix (default: convino)"
+        "--prefix", default="convino", help="Output file prefix (default: convino)"
     )
     parser.add_argument(
-        "--pearson", action="store_true",
-        help="Use Pearson chi2 (default: Neyman)"
+        "--pearson", action="store_true", help="Use Pearson chi2 (default: Neyman)"
     )
     parser.add_argument(
-        "--debug", action="store_true",
-        help="Print extra debug information"
+        "--debug", action="store_true", help="Print extra debug information"
     )
     parser.add_argument(
-        "--verbose", action="store_true",
+        "--verbose",
+        action="store_true",
         help="Print per-phase timing checkpoints (parse, chi2 build, "
-             "minimize, post-fit, impacts, total) to stderr"
+        "minimize, post-fit, impacts, total) to stderr",
     )
     parser.add_argument(
-        "--export", choices=["npz", "json", "both"], default=None,
+        "--export",
+        choices=["npz", "json", "both"],
+        default=None,
         help="Also export machine-readable result(s) alongside the text "
-             "output, as <prefix>_result.npz / <prefix>_result.json"
+        "output, as <prefix>_result.npz / <prefix>_result.json",
     )
     impacts_group = parser.add_mutually_exclusive_group()
     impacts_group.add_argument(
-        "--no-impacts", action="store_true",
+        "--no-impacts",
+        action="store_true",
         help="Skip uncertainty-impact computation entirely (impact groups "
-             "and the per-systematic/stat-only breakdown) for the fastest "
-             "run when only the combined values/covariance are needed"
+        "and the per-systematic/stat-only breakdown) for the fastest "
+        "run when only the combined values/covariance are needed",
     )
     impacts_group.add_argument(
-        "--impacts-only", default=None, metavar="GROUP1,GROUP2",
+        "--impacts-only",
+        default=None,
+        metavar="GROUP1,GROUP2",
         help="Only compute the listed [uncertainty impacts] group(s) "
-             "instead of all of them (comma-separated labels); the per-"
-             "systematic/stat-only breakdown is unaffected"
+        "instead of all of them (comma-separated labels); the per-"
+        "systematic/stat-only breakdown is unaffected",
     )
     parser.add_argument(
-        "--scan", action="store_true",
+        "--scan",
+        action="store_true",
         help="Scan each [correlations] group with an actual (nominal & low : "
-             "high) range across --scan-steps points, recombining at each "
-             "one; written to <prefix>_scan_result.txt (plus "
-             "<prefix>_scan_result.npz/json if --export is also given)"
+        "high) range across --scan-steps points, recombining at each "
+        "one; written to <prefix>_scan_result.txt (plus "
+        "<prefix>_scan_result.npz/json if --export is also given)",
     )
     parser.add_argument(
-        "--scan-steps", type=int, default=6, metavar="N",
+        "--scan-steps",
+        type=int,
+        default=6,
+        metavar="N",
         help="Number of points per correlation scan group (default: 6, "
-             "matching the original -s option's fixed step count)"
+        "matching the original -s option's fixed step count)",
     )
     parser.add_argument(
-        "--pd-reg-method", choices=["shift", "clip", "higham"], default="shift",
+        "--pd-reg-method",
+        choices=["shift", "clip", "higham"],
+        default="shift",
         dest="pd_reg_method",
         help="Method used to regularise a non-positive-definite prior correlation "
-             "matrix: 'shift' (default) adds the smallest δI and renormalises, "
-             "uniformly damping all correlations; 'clip' reflects negative "
-             "eigenvalues to eps and renormalises; 'higham' finds the nearest "
-             "correlation matrix in Frobenius norm via alternating projections"
+        "matrix: 'shift' (default) adds the smallest δI and renormalises, "
+        "uniformly damping all correlations; 'clip' reflects negative "
+        "eigenvalues to eps and renormalises; 'higham' finds the nearest "
+        "correlation matrix in Frobenius norm via alternating projections",
     )
     parser.add_argument(
-        "--nonneg-combined", action="store_true", dest="nonneg_combined",
+        "--nonneg-combined",
+        action="store_true",
+        dest="nonneg_combined",
         help="Constrain combined observables to be >= 0 (off by default: not "
-             "every combined quantity is a non-negative cross section)"
+        "every combined quantity is a non-negative cross section)",
     )
 
     parser.add_argument(
-        "--use-nuisance-values", action="store_true", dest="use_nuisance_values",
+        "--use-nuisance-values",
+        action="store_true",
+        dest="use_nuisance_values",
         help="Use the [nuisance values] block of each input, i.e. the post-fit "
-             "central values of a profiled input's nuisances. Off by default, "
-             "which reproduces the original C++ Convino (all input nuisances "
-             "re-centred at 0); see docs/nuisance_values.md"
+        "central values of a profiled input's nuisances. Off by default, "
+        "which reproduces the original C++ Convino (all input nuisances "
+        "re-centred at 0); see docs/nuisance_values.md",
     )
 
     args = parser.parse_args()
@@ -125,8 +138,17 @@ def main():
             nonneg_combined=args.nonneg_combined,
             use_nuisance_values=args.use_nuisance_values,
         )
-        exporters = {"npz": (export_npz, export_scan_npz), "json": (export_json, export_scan_json)}
-        formats = ["npz", "json"] if args.export == "both" else [args.export] if args.export else []
+        exporters = {
+            "npz": (export_npz, export_scan_npz),
+            "json": (export_json, export_scan_json),
+        }
+        formats = (
+            ["npz", "json"]
+            if args.export == "both"
+            else [args.export]
+            if args.export
+            else []
+        )
 
         result = combiner.combine()
         write_result(result, prefix=args.prefix)
@@ -157,6 +179,7 @@ def main():
         print(f"ERROR: {e}", file=sys.stderr)
         if args.debug:
             import traceback
+
             traceback.print_exc()
         sys.exit(1)
 

@@ -21,15 +21,16 @@ import numpy as np
 
 from pyconvino.combiner import _nearest_positive_definite
 
-NON_PD = np.array([
-    [1.0, 0.9, 0.9],
-    [0.9, 1.0, -0.9],
-    [0.9, -0.9, 1.0],
-])
+NON_PD = np.array(
+    [
+        [1.0, 0.9, 0.9],
+        [0.9, 1.0, -0.9],
+        [0.9, -0.9, 1.0],
+    ]
+)
 
 
 class PDRegularizationWarningTest(unittest.TestCase):
-
     def _run(self, A, method="shift"):
         with warnings.catch_warnings(record=True) as caught:
             warnings.simplefilter("always")
@@ -46,7 +47,9 @@ class PDRegularizationWarningTest(unittest.TestCase):
     def _assert_valid_corr(self, result):
         """Result must be PD and have unit diagonal."""
         self.assertGreater(np.linalg.eigvalsh(result).min(), 0.0)
-        np.testing.assert_allclose(np.diag(result), np.ones(result.shape[0]), atol=1e-12)
+        np.testing.assert_allclose(
+            np.diag(result), np.ones(result.shape[0]), atol=1e-12
+        )
 
     # -- per-method warning + validity ----------------------------------------
 
@@ -75,28 +78,33 @@ class PDRegularizationWarningTest(unittest.TestCase):
         # Where the original is non-zero, result / original should be constant.
         nonzero = NON_PD[mask] != 0
         ratios = result[mask][nonzero] / NON_PD[mask][nonzero]
-        np.testing.assert_allclose(ratios, ratios[0], rtol=1e-10,
-                                   err_msg="shift must scale all off-diag entries uniformly")
+        np.testing.assert_allclose(
+            ratios,
+            ratios[0],
+            rtol=1e-10,
+            err_msg="shift must scale all off-diag entries uniformly",
+        )
 
     # -- Higham: Frobenius-optimal (≤ shift) ----------------------------------
 
     def test_higham_and_shift_similar_frobenius(self):
         """For a symmetric inconsistency all methods give comparable Frobenius change."""
         r_higham, _ = self._run(NON_PD, method="higham")
-        r_shift, _  = self._run(NON_PD, method="shift")
-        r_clip, _   = self._run(NON_PD, method="clip")
+        r_shift, _ = self._run(NON_PD, method="shift")
+        r_clip, _ = self._run(NON_PD, method="clip")
         mask = ~np.eye(3, dtype=bool)
         frobs = {
-            "higham": np.sqrt(np.sum((r_higham[mask] - NON_PD[mask])**2)),
-            "shift":  np.sqrt(np.sum((r_shift[mask]  - NON_PD[mask])**2)),
-            "clip":   np.sqrt(np.sum((r_clip[mask]   - NON_PD[mask])**2)),
+            "higham": np.sqrt(np.sum((r_higham[mask] - NON_PD[mask]) ** 2)),
+            "shift": np.sqrt(np.sum((r_shift[mask] - NON_PD[mask]) ** 2)),
+            "clip": np.sqrt(np.sum((r_clip[mask] - NON_PD[mask]) ** 2)),
         }
         # All three should be within 10 % of each other on this matrix
         # (for the symmetric NON_PD matrix shift≈higham; clip may differ a bit).
         values = list(frobs.values())
         spread = max(values) - min(values)
-        self.assertLess(spread / max(values), 0.10,
-                        f"Frobenius distances spread >10 %: {frobs}")
+        self.assertLess(
+            spread / max(values), 0.10, f"Frobenius distances spread >10 %: {frobs}"
+        )
 
     # -- already-PD: no warning, identity returned ----------------------------
 
@@ -104,17 +112,20 @@ class PDRegularizationWarningTest(unittest.TestCase):
         A = np.eye(4)
         result, caught = self._run(A)
         self.assertEqual(
-            [str(w.message) for w in caught], [],
+            [str(w.message) for w in caught],
+            [],
             "identity matrix is already PD and must not trigger a warning",
         )
         np.testing.assert_allclose(result, A)
 
     def test_no_warning_for_well_conditioned_pd_matrix(self):
-        A = np.array([
-            [1.0, 0.3, 0.1],
-            [0.3, 1.0, 0.2],
-            [0.1, 0.2, 1.0],
-        ])
+        A = np.array(
+            [
+                [1.0, 0.3, 0.1],
+                [0.3, 1.0, 0.2],
+                [0.1, 0.2, 1.0],
+            ]
+        )
         self.assertGreater(np.linalg.eigvalsh(A).min(), 0.0)
         _, caught = self._run(A)
         self.assertEqual([str(w.message) for w in caught], [])

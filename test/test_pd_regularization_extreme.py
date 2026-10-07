@@ -64,7 +64,9 @@ class PDRegExtremeComparisonTest(unittest.TestCase):
     @classmethod
     def _print_summary(cls):
         print("\n" + "=" * 72)
-        print("PD regularisation comparison — Combination_ATLAS813CMS13_corrExtremeTest")
+        print(
+            "PD regularisation comparison — Combination_ATLAS813CMS13_corrExtremeTest"
+        )
         print("=" * 72)
 
         for method in METHODS:
@@ -92,7 +94,9 @@ class PDRegExtremeComparisonTest(unittest.TestCase):
         for method in METHODS:
             if method == "shift":
                 continue
-            delta = np.max(np.abs(np.asarray(cls.results[method].combined_values) - shift_vals))
+            delta = np.max(
+                np.abs(np.asarray(cls.results[method].combined_values) - shift_vals)
+            )
             print(f"  {method}: max |Δ| = {delta:.6g}")
 
         print("=" * 72 + "\n")
@@ -119,6 +123,8 @@ class PDRegExtremeComparisonTest(unittest.TestCase):
         for method in ["clip", "higham"]:
             vals = np.asarray(self.results[method].combined_values)
             np.testing.assert_allclose(
-                vals, ref, rtol=0.01,
+                vals,
+                ref,
+                rtol=0.01,
                 err_msg=f"method '{method}' combined values deviate > 1 % from 'shift'",
             )
