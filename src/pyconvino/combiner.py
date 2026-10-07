@@ -1333,7 +1333,6 @@ def _higham_nearest_corr(
     Converges quadratically; for the matrix sizes typical here (< 500 systematics)
     it needs only a handful of iterations.
     """
-    n = A.shape[0]
     Y = A.copy()
     delta_S = np.zeros_like(A)
 

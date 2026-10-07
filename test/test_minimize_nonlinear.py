@@ -41,7 +41,7 @@ def _make_relative_setup() -> MeasurementSetup:
     chi2 is genuinely nonlinear in `pars` and the quadratic fast path must not
     be taken.
     """
-    nest, nlamb = 2, 2
+    nlamb = 2
     return MeasurementSetup(
         x_meas=np.array([100.0, 102.0]),
         LM=np.array([[4.0, 0.5], [0.5, 3.0]]),

@@ -4,6 +4,10 @@
 
 # pyconvino
 
+[![test](https://github.com/SWuchterl/pyconvino/actions/workflows/test.yml/badge.svg)](https://github.com/SWuchterl/pyconvino/actions/workflows/test.yml)
+[![lint](https://github.com/SWuchterl/pyconvino/actions/workflows/lint.yml/badge.svg)](https://github.com/SWuchterl/pyconvino/actions/workflows/lint.yml)
+![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-blue)
+
 A Python/JAX port of [Convino](https://github.com/jkiesele/Convino) — a tool for
 combining physics measurements with correlated systematic uncertainties. This
 reimplementation needs neither ROOT nor Minuit: the χ² is built with JAX and
