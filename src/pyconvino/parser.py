@@ -293,7 +293,7 @@ def parse_measurement_file(path: str | Path) -> MeasurementFileData:
     # ---- Correlation matrix block -------------------------------------
     elif "correlation matrix" in blocks and blocks["correlation matrix"]:
         lines = blocks["correlation matrix"]
-        names, constraints, corr = _parse_triangular(lines)
+        names, constraints, corr_rows = _parse_triangular(lines)
         n = len(names)
 
         if any(c is None for c in constraints):
@@ -302,7 +302,7 @@ def parse_measurement_file(path: str | Path) -> MeasurementFileData:
             )
 
         # Zero out small off-diagonal correlations (|rho| < 1e-4) – matches C++
-        corr = np.asarray(corr, dtype=float)
+        corr = np.asarray(corr_rows, dtype=float)
         sigma = np.asarray(constraints, dtype=float)
         corr[~np.eye(n, dtype=bool) & (np.abs(corr) < 1e-4)] = 0.0
 

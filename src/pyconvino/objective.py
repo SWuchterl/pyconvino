@@ -25,6 +25,7 @@ Systematic eval:
 from __future__ import annotations
 
 from collections.abc import Callable
+from typing import Any
 
 import jax
 import jax.numpy as jnp
@@ -51,7 +52,7 @@ def make_chi2(
     use_pearson : Pearson chi2 scaling (default Neyman)
     """
     # Convert to JAX arrays once
-    meas_jax = []
+    meas_jax: list[dict[str, Any]] = []
     for ms in setups:
         # Only "absolute" and "relative" are implemented. "lognormal" is
         # parsed, but the C++ Convino never finished it either, so fail

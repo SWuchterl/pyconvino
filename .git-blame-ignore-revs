@@ -1,0 +1,4 @@
+# Style-only commits, hidden in git blame (GitHub reads this file;
+# locally: git config blame.ignoreRevsFile .git-blame-ignore-revs).
+# ruff format of all code
+8d7b0be29fe7b49436ee6e6c1c9bd5e7b83a07ce

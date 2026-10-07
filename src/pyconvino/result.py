@@ -9,6 +9,7 @@ import io
 import math
 import os
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 
@@ -593,7 +594,7 @@ def _flatten_for_npz(d: dict, prefix: str = "") -> dict[str, np.ndarray]:
 
 def export_npz(result: CombinationResult, path) -> None:
     """Export `to_dict(result)` to a compressed .npz file (flat keys, '__'-joined)."""
-    flat = _flatten_for_npz(to_dict(result))
+    flat: dict[str, Any] = _flatten_for_npz(to_dict(result))
     np.savez_compressed(path, **flat)
 
 
@@ -625,7 +626,7 @@ def scan_results_to_dict(scan_results: dict) -> dict:
 
 def export_scan_npz(scan_results: dict, path) -> None:
     """Export scan results to a compressed .npz (flat keys, '__'-joined)."""
-    flat: dict[str, np.ndarray] = {}
+    flat: dict[str, Any] = {}
     for name, (values, steps) in scan_results.items():
         flat[f"{name}__scan_values"] = np.asarray(values)
         for i, res in enumerate(steps):

@@ -593,7 +593,7 @@ class Combiner:
 
         # Map each nuisance to its user-defined [uncertainty impacts] group
         # (parallel to all_sys_names). First match wins; "ungrouped" otherwise.
-        _name_to_group = {}
+        _name_to_group: dict[str, str] = {}
         for _label, _members in cfg.impact_groups.items():
             for _m in _members:
                 _name_to_group.setdefault(_m, _label)
@@ -760,7 +760,9 @@ class Combiner:
         return all_sys_names, combined_names, nsys, nest
 
     def _build_prior(
-        self, all_sys_names: list[str], free_names: set[str] = frozenset()
+        self,
+        all_sys_names: list[str],
+        free_names: set[str] | frozenset[str] = frozenset(),
     ) -> tuple[np.ndarray, np.ndarray]:
         """
         Build the (nsys × nsys) inverse prior covariance.
@@ -1031,7 +1033,7 @@ class Combiner:
         self,
         chi2_fn,
         grad_fn,
-        pars_best: jnp.ndarray,
+        pars_best: np.ndarray | jnp.ndarray,
         chi2_min: float,
         param_idx: int,
         sigma_sym: float,

@@ -83,10 +83,9 @@ class MeasurementSetup:
     est_global_idx: list[int] = field(default_factory=list)
     sys_global_idx: list[int] = field(default_factory=list)
 
-    lambda_hat: np.ndarray = None  # input post-fit nuisance values, (nlamb,); default 0
-    prior_diag: np.ndarray = (
-        None  # prior precision P_i of the input fit, (nlamb,); default 1
-    )
+    # None -> filled in __post_init__ (zeros / ones of length nlamb)
+    lambda_hat: np.ndarray = None  # type: ignore[assignment]  # input post-fit nuisance values
+    prior_diag: np.ndarray = None  # type: ignore[assignment]  # prior precision P_i of the input fit
     chi2_offset: float = 0.0  # lambda_hat^T P LD^+ P lambda_hat
     chi2_standalone: float = 0.0  # chi2 of this input alone at its own best fit
 
@@ -180,8 +179,8 @@ def setup_measurement(
     LM = np.zeros((nest, nest))
     start = nHest if H_has_data else 0
     LM[:start, :start] = M
-    i = start + np.flatnonzero(stat_errs[start:] > 0)
-    LM[i, i] = 1.0 / stat_errs[i] ** 2
+    diag = start + np.flatnonzero(stat_errs[start:] > 0)
+    LM[diag, diag] = 1.0 / stat_errs[diag] ** 2
 
     # ------------------------------------------------------------------
     # Build Lk (systematic response vectors)
