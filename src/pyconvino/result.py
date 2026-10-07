@@ -14,7 +14,6 @@ import numpy as np
 
 from .combiner import CombinationResult
 
-
 # ---------------------------------------------------------------------------
 # C++ textFormatter::fixLength port
 # ---------------------------------------------------------------------------
@@ -33,10 +32,7 @@ def _fix_length(v: float, l: int) -> str:
     For v < 0 : l_eff = l+1, returns first l+1 chars → total l+1 chars
     For v == 0: returns first-l-chars (no leading space) → total l chars
     """
-    if v < 0.0:
-        l_eff = l + 1
-    else:
-        l_eff = l
+    l_eff = l + 1 if v < 0.0 else l
 
     s = f"{v:.{l_eff + 10}f}"   # fixed format, very high precision
 
@@ -215,7 +211,7 @@ def _print_impact_table(
     """Print merged impact table from user-defined impact groups."""
     nest = len(comb_names)
     maxcomb = max((len(n) for n in comb_names), default=1)
-    maxnuis = max((len(k) for k in impact_groups.keys()), default=1)
+    maxnuis = max((len(k) for k in impact_groups), default=1)
 
     buf.write("[impact table: name, impact [%]]\n")
     buf.write(' ' * maxnuis + ' ')
@@ -442,7 +438,7 @@ def format_scan_result(scan_results: dict) -> str:
     """
     buf = io.StringIO()
     for name, (values, steps) in scan_results.items():
-        for i, (val, res) in enumerate(zip(values, steps)):
+        for i, (val, res) in enumerate(zip(values, steps, strict=True)):
             buf.write(
                 f"=== scan group '{name}': step {i + 1}/{len(steps)}, "
                 f"correlation={float(val):g} ===\n"

@@ -33,23 +33,22 @@ import time
 import warnings
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional
 
-import numpy as np
 import jax
 import jax.numpy as jnp
-from scipy.optimize import minimize, brentq
+import numpy as np
 from scipy.linalg import inv as scipy_inv
+from scipy.optimize import brentq, minimize
 from scipy.stats import chi2 as _chi2_dist
 
+from .measurement import MeasurementSetup, setup_measurement
+from .objective import make_chi2
 from .parser import (
     ConfigData,
     MeasurementFileData,
     parse_config_file,
     parse_measurement_file,
 )
-from .measurement import MeasurementSetup, setup_measurement
-from .objective import make_chi2
 
 jax.config.update("jax_enable_x64", True)
 
@@ -202,7 +201,7 @@ class Combiner:
         meas_data: list[MeasurementFileData],
         use_pearson: bool = False,
         compute_impacts: bool = True,
-        impacts_only: Optional[list[str]] = None,
+        impacts_only: list[str] | None = None,
         verbose: bool = False,
         pd_reg_method: str = "shift",
         nonneg_combined: bool = False,
@@ -226,7 +225,7 @@ class Combiner:
                 )
 
     @classmethod
-    def from_config(cls, config_path: str, **kw) -> "Combiner":
+    def from_config(cls, config_path: str, **kw) -> Combiner:
         """Parse `config_path` and its measurement files; `kw` go to __init__."""
         t0 = time.perf_counter()
         cfg = parse_config_file(config_path)
@@ -262,7 +261,7 @@ class Combiner:
         all_sys_names, combined_names, nsys, nest = self._assign_global_indices(setups)
 
         # 3. Build prior inverse-covariance
-        free_names = {n for s in setups for n, p in zip(s.sys_names, s.prior_diag) if p == 0}
+        free_names = {n for s in setups for n, p in zip(s.sys_names, s.prior_diag, strict=True) if p == 0}
         inv_C, C_exact = self._build_prior(all_sys_names, free_names)
         inv_C_eff = self._effective_prior(setups, inv_C)
         self._vtime("setup + prior", t0)
@@ -355,7 +354,7 @@ class Combiner:
             cov_fit = 2.0 * scipy_inv(H_fit)
         except np.linalg.LinAlgError:
             cov_fit = np.full_like(H_fit, np.nan)
-            warnings.warn("Post-fit Hessian not invertible; covariance set to NaN")
+            warnings.warn("Post-fit Hessian not invertible; covariance set to NaN", stacklevel=2)
 
         # 7b. Signed response matrix: shift in combined_values[b] for +1σ of
         # nuisance i, from the Hessian cross-block A = -inv(H_xx) @ H_xt.
@@ -518,7 +517,7 @@ class Combiner:
         ndf = n_meas - nest
         chi2_standalone = {
             Path(d.path).name: float(s.chi2_standalone)
-            for d, s in zip(self.meas_data, setups)
+            for d, s in zip(self.meas_data, setups, strict=True)
         }
         chi2_tension = float(chi2_min) - sum(chi2_standalone.values())
         if ndf > 0:
@@ -604,7 +603,7 @@ class Combiner:
 
     def scan_correlations(
         self, n_steps: int = 6
-    ) -> dict[str, tuple[np.ndarray, list["CombinationResult"]]]:
+    ) -> dict[str, tuple[np.ndarray, list[CombinationResult]]]:
         """
         Re-run the combination while sweeping a correlation assumption
         across its configured range, one named `[correlations]` group at a
@@ -1033,7 +1032,7 @@ class Combiner:
         except Exception:
             warnings.warn(
                 f"profile (upward) error for parameter {param_idx} failed; "
-                "falling back to the symmetric HESSE error"
+                "falling back to the symmetric HESSE error", stacklevel=2
             )
             eu = sigma_sym  # fallback
 
@@ -1046,7 +1045,7 @@ class Combiner:
         except Exception:
             warnings.warn(
                 f"profile (downward) error for parameter {param_idx} failed; "
-                "falling back to the symmetric HESSE error"
+                "falling back to the symmetric HESSE error", stacklevel=2
             )
             ed = sigma_sym  # fallback
 
@@ -1078,7 +1077,7 @@ class Combiner:
                 f"[convino] input #{k}: {int(neg.sum())} nuisance "
                 f"direction(s) with post-fit variance above the prior (min LD "
                 f"eigenvalue {e.min():.3g}); moved to prior_inv_cov_eff for the "
-                f"global-impacts split (fit unchanged)"
+                f"global-impacts split (fit unchanged)", stacklevel=2
             )
         return inv_C_eff
 
@@ -1143,7 +1142,7 @@ class Combiner:
             if not frozen_idx:
                 warnings.warn(
                     f"impact group '{label}' has no members matching any known "
-                    f"systematic ({members}); skipping it"
+                    f"systematic ({members}); skipping it", stacklevel=2
                 )
                 continue
 

@@ -23,11 +23,12 @@ Systematic eval:
 """
 
 from __future__ import annotations
-from typing import Callable
 
-import numpy as np
+from collections.abc import Callable
+
 import jax
 import jax.numpy as jnp
+import numpy as np
 
 jax.config.update("jax_enable_x64", True)
 
@@ -55,7 +56,7 @@ def make_chi2(
         # Only "absolute" and "relative" are implemented. "lognormal" is
         # parsed, but the C++ Convino never finished it either, so fail
         # instead of silently treating it as "absolute".
-        bad = {n: t for n, t in zip(ms.sys_names, ms.sys_types)
+        bad = {n: t for n, t in zip(ms.sys_names, ms.sys_types, strict=True)
                if t not in ("absolute", "relative")}
         if bad:
             raise NotImplementedError(

@@ -46,7 +46,8 @@ convino = "pyconvino.cli:main"
 where = ["src"]
 
 [tool.ruff.lint]
-# Ruff's default rule set (errors and undefined/unused names), so local runs
-# and CI agree. E741 (`l` as a name) and E702 (`a; b`) are style only.
-select = ["E4", "E7", "E9", "F"]
+# Errors and unused names (E4, E7, E9, F), import order (I), modern syntax
+# (UP), bugbear (B), simplify (SIM). Listed in full: the default set of newer
+# ruff versions is larger. E741 (`l` as a name), E702 (`a; b`): style only.
+select = ["E4", "E7", "E9", "F", "I", "UP", "B", "SIM"]
 ignore = ["E741", "E702"]

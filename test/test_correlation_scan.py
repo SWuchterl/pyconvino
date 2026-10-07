@@ -10,6 +10,7 @@ shared, scannable systematic-pair correlation.
 
 from __future__ import annotations
 
+import itertools
 import tempfile
 import unittest
 from pathlib import Path
@@ -89,7 +90,7 @@ class CorrelationScanTest(unittest.TestCase):
         np.testing.assert_allclose(values, expected_values)
         self.assertEqual(len(steps), 6)
 
-        for val, res in zip(values, steps):
+        for val, res in zip(values, steps, strict=True):
             ia = res.sys_names.index("sysA")
             ib = res.sys_names.index("sysB")
             # The swept value lands in the prior exactly (it's a direct
@@ -100,7 +101,7 @@ class CorrelationScanTest(unittest.TestCase):
         # less from averaging than when anti-correlated: the combined error
         # must increase monotonically with the scanned correlation.
         errs = [float(res.combined_err_up[0]) for res in steps]
-        self.assertTrue(all(e2 > e1 for e1, e2 in zip(errs, errs[1:])))
+        self.assertTrue(all(e2 > e1 for e1, e2 in itertools.pairwise(errs)))
 
     def test_scan_skips_groups_without_an_actual_range(self):
         with tempfile.TemporaryDirectory() as td:

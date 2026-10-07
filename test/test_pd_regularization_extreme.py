@@ -22,7 +22,6 @@ import numpy as np
 
 from .helpers import SETUPS_DIR
 
-
 EXTREME_CONFIG = str(
     SETUPS_DIR / "Combination_ATLAS813CMS13_corrExtremeTest" / "rho_config.txt"
 )

@@ -17,7 +17,7 @@ from pathlib import Path
 
 import numpy as np
 
-from pyconvino import Combiner, to_dict, export_npz, export_json
+from pyconvino import Combiner, export_json, export_npz, to_dict
 
 from .helpers import config_path
 

@@ -26,10 +26,8 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional
 
 import numpy as np
-
 
 # ---------------------------------------------------------------------------
 # Low-level helpers
@@ -52,7 +50,7 @@ def _read_blocks(path: Path) -> dict[str, list[str]]:
     content into the current block at the point of the directive.
     """
     blocks: dict[str, list[str]] = {}
-    current_block: Optional[str] = None
+    current_block: str | None = None
     current_lines: list[str] = []
 
     def _consume(raw_lines: list[str], base_dir: Path) -> None:
@@ -147,7 +145,7 @@ def _parse_uncertainty_str(s: str) -> tuple[float, float]:
     return float(first), float(second)
 
 
-def _parse_triangular(lines: list[str]) -> tuple[list[str], list[Optional[float]], list[list[float]]]:
+def _parse_triangular(lines: list[str]) -> tuple[list[str], list[float | None], list[list[float]]]:
     """
     Parse a lower-triangular matrix block.
 
@@ -166,10 +164,10 @@ def _parse_triangular(lines: list[str]) -> tuple[list[str], list[Optional[float]
     matrix      : square symmetric matrix as list-of-lists
     """
     names: list[str] = []
-    constraints: list[Optional[float]] = []
+    constraints: list[float | None] = []
     rows: list[list[float]] = []
 
-    for i, line in enumerate(lines):
+    for line in lines:
         tokens = line.split()
         if not tokens:
             continue
@@ -310,8 +308,8 @@ def parse_measurement_file(path: str | Path) -> MeasurementFileData:
             raise ValueError(f"{path}: covariance from correlation matrix not positive definite")
         try:
             H = np.linalg.inv(C)
-        except np.linalg.LinAlgError:
-            raise ValueError(f"{path}: correlation matrix covariance not invertible")
+        except np.linalg.LinAlgError as err:
+            raise ValueError(f"{path}: correlation matrix covariance not invertible") from err
 
         data.hessian_names = names
         data.hessian = H.tolist()

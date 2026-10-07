@@ -30,7 +30,7 @@ class FormatterTest(unittest.TestCase):
         if actual != expected:
             exp_lines = expected.splitlines()
             act_lines = actual.splitlines()
-            for i, (e, a) in enumerate(zip(exp_lines, act_lines)):
+            for i, (e, a) in enumerate(zip(exp_lines, act_lines, strict=True)):
                 if e != a:
                     self.fail(
                         f"formatter output differs at line {i + 1}:\n"

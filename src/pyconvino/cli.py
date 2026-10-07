@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import argparse
 import sys
-from importlib.metadata import PackageNotFoundError, version as _pkg_version
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version as _pkg_version
 
 try:
     __version__ = _pkg_version("pyconvino")
@@ -100,8 +101,13 @@ def main():
     # Import here to keep startup fast
     from .combiner import Combiner
     from .result import (
-        prepare_output_path, write_result, export_npz, export_json,
-        write_scan_result, export_scan_npz, export_scan_json,
+        export_json,
+        export_npz,
+        export_scan_json,
+        export_scan_npz,
+        prepare_output_path,
+        write_result,
+        write_scan_result,
     )
 
     try:

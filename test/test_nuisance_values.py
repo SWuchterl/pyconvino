@@ -68,7 +68,7 @@ class NuisanceValuesTest(unittest.TestCase):
 
     def _combine(self, with_values, free=(False, False), use_values=None):
         prior = [np.zeros((2, 2)) if f else P for f in free]
-        fits = [_fit(A, B, S, y, pr) for (A, B, S), y, pr in zip(ANA, self.ys, prior)]
+        fits = [_fit(A, B, S, y, pr) for (A, B, S), y, pr in zip(ANA, self.ys, prior, strict=True)]
         files = [_write(self.dir, k, th, H, with_values, free[k]) for k, (th, H) in enumerate(fits)]
         res = Combiner.from_config(
             str(_config(self.dir, files)), compute_impacts=False,
@@ -88,16 +88,16 @@ class NuisanceValuesTest(unittest.TestCase):
         fits, res = self._combine(with_values=True)
         # exact joint fit: both data sets, prior once
         H_tot = P.copy(); rhs = np.zeros(2)
-        for (A, B, S), y in zip(ANA, self.ys):
+        for (A, B, S), y in zip(ANA, self.ys, strict=True):
             J = np.hstack([A, B]); W = np.linalg.inv(S)
             H_tot += J.T @ W @ J; rhs += J.T @ W @ y
         theta = np.linalg.solve(H_tot, rhs)
         cov = np.linalg.inv(H_tot)
         chi2 = sum(float((y - np.hstack([A, B]) @ theta) @ np.linalg.inv(S) @ (y - np.hstack([A, B]) @ theta))
-                   for (A, B, S), y in zip(ANA, self.ys)) + theta[1] ** 2
+                   for (A, B, S), y in zip(ANA, self.ys, strict=True)) + theta[1] ** 2
         # the files carry no data residuals: each data term is relative to the
         # input's unconstrained (prior-free) optimum
-        for (A, B, S), y in zip(ANA, self.ys):
+        for (A, B, S), y in zip(ANA, self.ys, strict=True):
             th_d, _ = _fit(A, B, S, y, np.zeros((2, 2)))
             chi2 -= float((y - np.hstack([A, B]) @ th_d) @ np.linalg.inv(S) @ (y - np.hstack([A, B]) @ th_d))
 
@@ -133,7 +133,7 @@ class NuisanceValuesTest(unittest.TestCase):
         # written with lam free too, so no prior exists at all)
         fits, res = self._combine(with_values=True, free=(True, True))
         H_tot = np.zeros((2, 2)); rhs = np.zeros(2)
-        for (A, B, S), y in zip(ANA, self.ys):
+        for (A, B, S), y in zip(ANA, self.ys, strict=True):
             J = np.hstack([A, B]); W = np.linalg.inv(S)
             H_tot += J.T @ W @ J; rhs += J.T @ W @ y
         theta = np.linalg.solve(H_tot, rhs)

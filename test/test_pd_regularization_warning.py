@@ -21,7 +21,6 @@ import numpy as np
 
 from pyconvino.combiner import _nearest_positive_definite
 
-
 NON_PD = np.array([
     [1.0, 0.9, 0.9],
     [0.9, 1.0, -0.9],
