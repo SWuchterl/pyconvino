@@ -13,7 +13,7 @@ run_combos() {
         echo "Running setup: ${combsetup}"
         outname=${combsetup/Combination_/}
         echo "Output name: ${outname}"
-        convino ConvinoSetups/${combsetup}/rho_config.txt --prefix out/${outname} --export both --debug --verbose &> ${combsetup}.log
+        pyconvino ConvinoSetups/${combsetup}/rho_config.txt --prefix out/${outname} --export both --debug --verbose &> ${combsetup}.log
     done
 }
 
@@ -27,7 +27,7 @@ run_pulls() {
     for combsetup in "$@"; do
         outname=${combsetup/Combination_/}_pulls
         echo "Running setup with nuisance values: ${combsetup} -> ${outname}"
-        convino ConvinoSetups/${combsetup}/rho_config.txt --use-nuisance-values --prefix out/${outname} --export both --debug --verbose &> ${combsetup}_pulls.log
+        pyconvino ConvinoSetups/${combsetup}/rho_config.txt --use-nuisance-values --prefix out/${outname} --export both --debug --verbose &> ${combsetup}_pulls.log
     done
 }
 

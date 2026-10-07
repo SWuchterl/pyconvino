@@ -27,11 +27,11 @@ _DEFAULT_TOL = dict(rtol=1e-5, atol=1e-8)
 _TOL = {
     "impact_up": dict(rtol=1e-4, atol=1e-6),
     "impact_down": dict(rtol=1e-4, atol=1e-6),
-    # Per-systematic impacts that are ~0 come out as 0 or ~1e-5 depending on
-    # platform / JAX version (sqrt of round-off), so they need a larger atol.
-    "impact_per_sys_up": dict(rtol=1e-4, atol=1e-4),
-    "impact_per_sys_down": dict(rtol=1e-4, atol=1e-4),
 }
+# Per-systematic impacts that are ~0 come out as 0 or ~1e-5 depending on
+# platform / JAX version (sqrt of round-off ~1e-10). Compare their squares,
+# where that noise is below the default atol.
+_SQUARED = {"impact_per_sys_up", "impact_per_sys_down"}
 
 
 class RegressionTest(unittest.TestCase):
@@ -67,6 +67,8 @@ class RegressionTest(unittest.TestCase):
                                     f"{name}/{key}: changed")
                 else:
                     tol = _TOL.get(key, _DEFAULT_TOL)
+                    if key in _SQUARED:
+                        exp, got = exp**2, got**2
                     # equal_nan=True: ndf<=0 setups legitimately produce NaN
                     # chi2_per_ndf/p_value (no degrees of freedom to test),
                     # and that NaN-ness is itself the thing being regressed.

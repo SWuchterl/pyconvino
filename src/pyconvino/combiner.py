@@ -42,8 +42,6 @@ from scipy.optimize import minimize, brentq
 from scipy.linalg import inv as scipy_inv
 from scipy.stats import chi2 as _chi2_dist
 
-jax.config.update("jax_enable_x64", True)
-
 from .parser import (
     ConfigData,
     MeasurementFileData,
@@ -52,6 +50,8 @@ from .parser import (
 )
 from .measurement import MeasurementSetup, setup_measurement
 from .objective import make_chi2
+
+jax.config.update("jax_enable_x64", True)
 
 
 @dataclass

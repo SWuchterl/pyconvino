@@ -34,13 +34,12 @@ test = ["pytest"]
 
 [project.urls]
 Homepage = "https://github.com/SWuchterl/pyconvino"
-Source = "https://github.com/SWuchterl/pyconvino"
 Issues = "https://github.com/SWuchterl/pyconvino/issues"
 "Original Convino" = "https://github.com/jkiesele/Convino"
 
 [project.scripts]
 pyconvino = "pyconvino.cli:main"
-# Old name, kept so existing scripts (condor jobs, runAll.sh) still work.
+# Old name, kept so existing scripts (condor jobs) still work.
 convino = "pyconvino.cli:main"
 
 [tool.setuptools.packages.find]
@@ -51,7 +50,3 @@ where = ["src"]
 # and CI agree. E741 (`l` as a name) and E702 (`a; b`) are style only.
 select = ["E4", "E7", "E9", "F"]
 ignore = ["E741", "E702"]
-
-[tool.ruff.lint.per-file-ignores]
-# jax_enable_x64 must be set before the package modules are imported.
-"src/pyconvino/combiner.py" = ["E402"]

@@ -4,21 +4,30 @@ on:
   push:
   pull_request:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]   # macos-latest = arm64
+        os: [ubuntu-latest]
         python: ["3.11", "3.12", "3.13"]
+        include:
+          - os: macos-latest   # arm64; one version is enough (10x minutes)
+            python: "3.13"
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python }}
+          cache: pip
+          cache-dependency-path: pyproject.toml
       # Test the built wheel, not the checkout, so packaging errors show up.
       - run: python -m pip install build
-      - run: python -m build
-      - run: python -m pip install dist/*.whl pytest
+      - run: python -m build --wheel
+      - run: python -m pip install "$(ls dist/*.whl)[test]"
       - run: python -m pytest test -q
