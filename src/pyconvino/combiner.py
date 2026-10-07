@@ -201,7 +201,6 @@ class Combiner:
         config: ConfigData,
         meas_data: list[MeasurementFileData],
         use_pearson: bool = False,
-        prefix: str = "convino",
         compute_impacts: bool = True,
         impacts_only: Optional[list[str]] = None,
         verbose: bool = False,
@@ -212,7 +211,6 @@ class Combiner:
         self.config = config
         self.meas_data = meas_data
         self.use_pearson = use_pearson
-        self.prefix = prefix
         self.compute_impacts = compute_impacts
         self.impacts_only = impacts_only
         self.verbose = verbose
@@ -228,34 +226,18 @@ class Combiner:
                 )
 
     @classmethod
-    def from_config(
-        cls,
-        config_path: str,
-        use_pearson: bool = False,
-        prefix: str = "convino",
-        compute_impacts: bool = True,
-        impacts_only: Optional[list[str]] = None,
-        verbose: bool = False,
-        pd_reg_method: str = "shift",
-        nonneg_combined: bool = False,
-        use_nuisance_values: bool = False,
-    ) -> "Combiner":
+    def from_config(cls, config_path: str, **kw) -> "Combiner":
+        """Parse `config_path` and its measurement files; `kw` go to __init__."""
         t0 = time.perf_counter()
         cfg = parse_config_file(config_path)
         meas_data = [parse_measurement_file(p) for p in cfg.measurement_files]
-        if verbose:
+        if kw.get("verbose"):
             print(
                 f"[convino] parsed config + {len(meas_data)} measurement file(s): "
                 f"{time.perf_counter() - t0:.3f}s",
                 file=sys.stderr,
             )
-        return cls(
-            cfg, meas_data, use_pearson=use_pearson, prefix=prefix,
-            compute_impacts=compute_impacts, impacts_only=impacts_only,
-            verbose=verbose, pd_reg_method=pd_reg_method,
-            nonneg_combined=nonneg_combined,
-            use_nuisance_values=use_nuisance_values,
-        )
+        return cls(cfg, meas_data, **kw)
 
     def _vtime(self, label: str, t0: float) -> None:
         """Print elapsed time since `t0` if `self.verbose` (CLI --verbose)."""
@@ -427,15 +409,10 @@ class Combiner:
         # 9. Pulls and constraints
         pulls = np.array(pars_best[:nsys])
         diag_cov_sys = np.sqrt(np.maximum(np.diag(cov_fit)[:nsys], 0.0))
-        constraints = diag_cov_sys  # post-fit sigma / prior sigma (prior sigma = 1)
 
         # 10. Correlation / covariance from post-fit Hessian
-        diag_std = np.sqrt(np.maximum(np.diag(cov_fit), 1e-30))
-        corr_full = cov_fit / np.outer(diag_std, diag_std)
-        np.fill_diagonal(corr_full, 1.0)
+        corr_full = _cov_to_corr(cov_fit)
 
-        # 11. Pre-combine systematic correlations (exact user-specified prior C)
-        pre_sys_corr = C_exact
         self._vtime("post-fit covariance + errors", t0)
 
         # 12. Uncertainty impacts (and per-group frozen covariance matrices).
@@ -574,9 +551,7 @@ class Combiner:
             )
             cov_fit = cov_fit.copy()
             cov_fit[nsys:, nsys:] = cov_comb_normed
-            diag_std = np.sqrt(np.maximum(np.diag(cov_fit), 1e-30))
-            corr_full = cov_fit / np.outer(diag_std, diag_std)
-            np.fill_diagonal(corr_full, 1.0)
+            corr_full = _cov_to_corr(cov_fit)
             self._vtime("differential normalisation", t0)
 
         # Map each nuisance to its user-defined [uncertainty impacts] group
@@ -603,12 +578,12 @@ class Combiner:
             combined_err_down=combined_err_down,
             sys_names=all_sys_names,
             pulls=pulls,
-            constraints=constraints,
+            constraints=diag_cov_sys,  # post-fit sigma / prior sigma (prior sigma = 1)
             corr_full=corr_full,
             cov_full=cov_fit,
             normalised=normalised,
             all_names=all_sys_names + combined_names,
-            pre_sys_corr=pre_sys_corr,
+            pre_sys_corr=C_exact,  # exact user-specified prior C
             impact_groups=impact_groups,
             impact_cov_groups=impact_cov_groups,
             sys_group_labels=sys_group_labels,
@@ -628,7 +603,7 @@ class Combiner:
         )
 
     def scan_correlations(
-        self, n_steps: int = 6, compute_impacts: bool = False
+        self, n_steps: int = 6
     ) -> dict[str, tuple[np.ndarray, list["CombinationResult"]]]:
         """
         Re-run the combination while sweeping a correlation assumption
@@ -654,12 +629,9 @@ class Combiner:
         fractional progress for a multi-pair group (where no single scalar
         correlation value applies).
 
-        `compute_impacts` defaults to False here, deliberately diverging from
-        the C++ reference (which always computes full impact tables at every
-        scan point): a correlation scan is about how the combined values,
-        errors and chi2 respond to the correlation assumption, and impact
-        computation is the dominant per-fit cost (see `--no-impacts`), so
-        skipping it by default keeps an `n_steps * n_groups` scan fast.
+        Impacts are not computed at the scan points (unlike the C++ reference):
+        they are the dominant per-fit cost and a scan is about the combined
+        values, errors and chi2.
         """
         if n_steps < 2:
             raise ValueError("scan_correlations: n_steps must be >= 2")
@@ -683,15 +655,11 @@ class Combiner:
                 # timed from this loop, while the inner combine() stays
                 # silent regardless of self.verbose.
                 t0 = time.perf_counter()
-                step_results.append(
-                    Combiner(
-                        cfg_step, self.meas_data, use_pearson=self.use_pearson,
-                        prefix=self.prefix, compute_impacts=compute_impacts,
-                        pd_reg_method=self.pd_reg_method,
-                        nonneg_combined=self.nonneg_combined,
-                        use_nuisance_values=self.use_nuisance_values,
-                    ).combine()
-                )
+                step_comb = copy.copy(self)
+                step_comb.config = cfg_step
+                step_comb.compute_impacts = False
+                step_comb.verbose = False
+                step_results.append(step_comb.combine())
                 self._vtime(f"scan '{scan.name}' step {step + 1}/{n_steps}", t0)
                 if single_pair:
                     sr0 = scan.ranges[0]
@@ -722,13 +690,7 @@ class Combiner:
         cfg = self.config
 
         # Collect all unique systematics in encounter order
-        all_sys_names: list[str] = []
-        seen_sys: set[str] = set()
-        for ms in setups:
-            for name in ms.sys_names:
-                if name not in seen_sys:
-                    all_sys_names.append(name)
-                    seen_sys.add(name)
+        all_sys_names = list(dict.fromkeys(n for ms in setups for n in ms.sys_names))
 
         # Build combined observable list from config
         # combined_names order matches config [observables] block order
@@ -834,21 +796,16 @@ class Combiner:
         # For each combined observable, average over measurements that contribute.
         # ms.est_global_idx[k] is the combined index of estimate est_names[k]
         # (assigned in _assign_global_indices).
-        comb_sum = np.zeros(nest)
-        comb_cnt = np.zeros(nest, dtype=int)
-        for ms in setups:
-            for k, c_idx in enumerate(ms.est_global_idx):
-                comb_sum[c_idx] += ms.x_meas[k]
-                comb_cnt[c_idx] += 1
-
-        for i in range(nest):
-            if comb_cnt[i] > 0:
-                x0[nsys + i] = comb_sum[i] / comb_cnt[i]
-            else:
-                raise ValueError(
-                    f"observable {combined_names[i]!r} has no contributing estimates "
-                    f"(declared in [observables] but no measurement lists it)"
-                )
+        idx = np.concatenate([np.asarray(ms.est_global_idx, dtype=int) for ms in setups])
+        vals = np.concatenate([np.asarray(ms.x_meas, dtype=float) for ms in setups])
+        comb_cnt = np.bincount(idx, minlength=nest)
+        if (comb_cnt == 0).any():
+            i = int(np.flatnonzero(comb_cnt == 0)[0])
+            raise ValueError(
+                f"observable {combined_names[i]!r} has no contributing estimates "
+                f"(declared in [observables] but no measurement lists it)"
+            )
+        x0[nsys:] = np.bincount(idx, weights=vals, minlength=nest) / comb_cnt
 
         return x0
 
@@ -997,7 +954,7 @@ class Combiner:
         to `frozen_vals` (scalar or array). `grad_fn` (built once by the caller)
         supplies the analytic jacobian instead of rebuilding jax.grad per call.
 
-        Returns (scipy OptimizeResult, free_mask).
+        Returns the scipy OptimizeResult.
         """
         p_init = np.asarray(p_init, dtype=np.float64)
         n = len(p_init)
@@ -1018,7 +975,7 @@ class Combiner:
 
         res = minimize(obj, p_init[free_mask], method="L-BFGS-B",
                        jac=jac, options=options)
-        return res, free_mask
+        return res
 
     def _profile_error(
         self,
@@ -1028,7 +985,6 @@ class Combiner:
         chi2_min: float,
         param_idx: int,
         sigma_sym: float,
-        target_delta: float = 1.0,
         extra_frozen_idx=None,
         extra_frozen_vals=None,
     ) -> tuple[float, float]:
@@ -1036,7 +992,7 @@ class Combiner:
         Find asymmetric ±1σ errors via profile likelihood:
         profile_chi2(v) = min_{pars except param_idx} chi2(pars)  at  pars[param_idx] = v
 
-        Solves: profile_chi2(v) - chi2_min = target_delta = 1
+        Solves: profile_chi2(v) - chi2_min = 1
 
         `extra_frozen_idx` / `extra_frozen_vals` pin additional parameters during
         the inner minimisation. They are used to profile a combined observable
@@ -1052,13 +1008,13 @@ class Combiner:
 
         def profile(v: float) -> float:
             """Minimize chi2 with pars[param_idx] = v (extras frozen)."""
-            res, _ = self._minimize_frozen(
+            res = self._minimize_frozen(
                 chi2_fn, grad_fn, pars_arr,
                 [param_idx] + extra_idx, [float(v)] + extra_vals, _opts,
             )
             return res.fun
 
-        target = chi2_min + target_delta
+        target = chi2_min + 1.0
 
         # brentq operates on the absolute parameter value v (which can be
         # O(1e3-1e4)), so rtol dominates the achievable precision: rtol=1e-4 on
@@ -1229,7 +1185,7 @@ class Combiner:
                 # impact and turn every refit into a full re-minimisation.
                 if not responses_symmetric:
                     frozen_vals = np.array(pars_best, dtype=np.float64)[frozen_idx]
-                    res, _ = self._minimize_frozen(
+                    res = self._minimize_frozen(
                         chi2_fn, grad_fn, pars_best, frozen_idx, frozen_vals,
                         {"maxiter": 2000, "ftol": 1e-14, "gtol": 1e-8},
                     )
@@ -1258,9 +1214,7 @@ class Combiner:
                 sym_frozen = np.maximum(np.abs(err_frozen_up), np.abs(err_frozen_down))
                 if true_frozen_cov:
                     c_fr = cov_restricted[est_slice, est_slice]
-                    d_fr = np.sqrt(np.maximum(np.diag(c_fr), 1e-300))
-                    corr_fr = c_fr / np.outer(d_fr, d_fr)
-                    np.fill_diagonal(corr_fr, 1.0)
+                    corr_fr = _cov_to_corr(c_fr, floor=1e-300)
                     est_cov = corr_fr * np.outer(sym_frozen, sym_frozen)
                 else:
                     est_cov = corr_est * np.outer(sym_frozen, sym_frozen)
@@ -1281,8 +1235,6 @@ class Combiner:
         self,
         combined_vals: np.ndarray,
         cov_est: np.ndarray,
-        n_iter: int = 1_000_000,
-        seed: int = 0,
     ) -> tuple[np.ndarray, np.ndarray]:
         """
         Bin-renormalisation for differential combinations ([global] isDifferential
@@ -1293,7 +1245,7 @@ class Combiner:
         addFloatingBin support, since that is a C++-interface-only extension never
         exposed through the base config file.
 
-        For each of `n_iter` draws x ~ N(combined_vals, cov_est): divide x by its
+        For each of n_iter = 1e6 draws x ~ N(combined_vals, cov_est): divide x by its
         own sum, subtract the nominal fraction, and accumulate the outer product.
         The result is the empirical covariance of the normalised fractions; C++
         does the same accumulation in a loop with a fixed seed(0)/1e6-iteration
@@ -1303,7 +1255,8 @@ class Combiner:
         Returns (normalised_vals, normalised_cov), both shape matching
         combined_vals/cov_est.
         """
-        rng = np.random.default_rng(seed)
+        n_iter = 1_000_000
+        rng = np.random.default_rng(0)
         sum_nominal = combined_vals.sum()
         nominal_frac = combined_vals / sum_nominal
         samples = rng.multivariate_normal(combined_vals, cov_est, size=n_iter)
@@ -1316,6 +1269,14 @@ class Combiner:
 # ---------------------------------------------------------------------------
 # Utility
 # ---------------------------------------------------------------------------
+
+def _cov_to_corr(cov: np.ndarray, floor: float = 1e-30) -> np.ndarray:
+    """Correlation matrix of `cov` (variances floored at `floor`, unit diagonal)."""
+    d = np.sqrt(np.maximum(np.diag(cov), floor))
+    corr = cov / np.outer(d, d)
+    np.fill_diagonal(corr, 1.0)
+    return corr
+
 
 def _higham_nearest_corr(
     A: np.ndarray,

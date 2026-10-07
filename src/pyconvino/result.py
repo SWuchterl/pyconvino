@@ -376,11 +376,6 @@ def format_result(result: CombinationResult) -> str:
     return buf.getvalue()
 
 
-def output_path_for(prefix: str) -> Path:
-    """Return the result file path for a given prefix (<prefix>_result.txt)."""
-    return Path(f"{prefix}_result.txt")
-
-
 def prepare_output_path(prefix: str) -> Path:
     """
     Resolve the output path for `prefix`, create any parent directory it names,
@@ -393,7 +388,7 @@ def prepare_output_path(prefix: str) -> Path:
     Returns the resolved output path. Raises a clear error if the directory
     cannot be created or written to.
     """
-    out_path = output_path_for(prefix)
+    out_path = Path(f"{prefix}_result.txt")
     parent = out_path.parent
 
     try:
@@ -436,10 +431,7 @@ def write_result(result: CombinationResult, prefix: str = "convino") -> None:
 # Correlation scan output (Combiner.scan_correlations / CLI --scan)
 # ---------------------------------------------------------------------------
 
-ScanResults = dict  # {group_name: (scan_values: np.ndarray, [CombinationResult, ...])}
-
-
-def format_scan_result(scan_results: "ScanResults") -> str:
+def format_scan_result(scan_results: dict) -> str:
     """
     Concatenate `format_result()` for every step of every scan group, with a
     `===` header identifying the group/step/value before each block. The C++
@@ -460,7 +452,7 @@ def format_scan_result(scan_results: "ScanResults") -> str:
     return buf.getvalue()
 
 
-def write_scan_result(scan_results: "ScanResults", prefix: str = "convino") -> Path:
+def write_scan_result(scan_results: dict, prefix: str = "convino") -> Path:
     """Write the scan text log to <prefix>_scan_result.txt."""
     text = format_scan_result(scan_results)
     out_path = Path(f"{prefix}_scan_result.txt")
@@ -595,31 +587,15 @@ def export_npz(result: CombinationResult, path) -> None:
     np.savez_compressed(path, **flat)
 
 
-def _to_jsonable(obj):
-    if isinstance(obj, np.ndarray):
-        return obj.tolist()
-    if isinstance(obj, dict):
-        return {k: _to_jsonable(v) for k, v in obj.items()}
-    if isinstance(obj, (list, tuple)):
-        return [_to_jsonable(v) for v in obj]
-    if isinstance(obj, np.floating):
-        return float(obj)
-    if isinstance(obj, np.integer):
-        return int(obj)
-    if isinstance(obj, np.bool_):
-        return bool(obj)
-    return obj
-
-
 def export_json(result: CombinationResult, path) -> None:
     """Export `to_dict(result)` to a JSON file (nested, ndarrays as lists)."""
     import json
 
-    data = _to_jsonable(to_dict(result))
-    Path(path).write_text(json.dumps(data, indent=2), encoding="utf-8")
+    data = json.dumps(to_dict(result), indent=2, default=lambda o: o.tolist())
+    Path(path).write_text(data, encoding="utf-8")
 
 
-def scan_results_to_dict(scan_results: "ScanResults") -> dict:
+def scan_results_to_dict(scan_results: dict) -> dict:
     """
     Flatten `Combiner.scan_correlations()`'s output into a `to_dict()`-shaped
     nested dict: `{group_name: {"scan_values": [...], "steps": [to_dict(...),
@@ -637,7 +613,7 @@ def scan_results_to_dict(scan_results: "ScanResults") -> dict:
     }
 
 
-def export_scan_npz(scan_results: "ScanResults", path) -> None:
+def export_scan_npz(scan_results: dict, path) -> None:
     """Export scan results to a compressed .npz (flat keys, '__'-joined)."""
     flat: dict[str, np.ndarray] = {}
     for name, (values, steps) in scan_results.items():
@@ -647,9 +623,9 @@ def export_scan_npz(scan_results: "ScanResults", path) -> None:
     np.savez_compressed(path, **flat)
 
 
-def export_scan_json(scan_results: "ScanResults", path) -> None:
+def export_scan_json(scan_results: dict, path) -> None:
     """Export scan results to a JSON file (nested, ndarrays as lists)."""
     import json
 
-    data = _to_jsonable(scan_results_to_dict(scan_results))
-    Path(path).write_text(json.dumps(data, indent=2), encoding="utf-8")
+    data = json.dumps(scan_results_to_dict(scan_results), indent=2, default=lambda o: o.tolist())
+    Path(path).write_text(data, encoding="utf-8")

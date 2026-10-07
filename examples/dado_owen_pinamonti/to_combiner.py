@@ -49,7 +49,7 @@ def measurement_matrices(data):
         for k, s in enumerate(ext_names):
             u = data.externalized.get(e, {}).get(s)
             if u is not None:
-                Ge[i, k] = u.up          # Convino stores cov(estimate, NP) as the "up" response
+                Ge[i, k] = u[0]          # Convino stores cov(estimate, NP) as the "up" response
     O = O + Ge @ Ge.T                     # externalised sources add to the total POI covariance
 
     names = prof_names + ext_names

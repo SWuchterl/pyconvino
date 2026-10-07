@@ -52,33 +52,16 @@ def make_chi2(
     # Convert to JAX arrays once
     meas_jax = []
     for ms in setups:
-        # Only "absolute" and "relative" systematic responses are implemented
-        # below (rel_mask selects "relative"; everything else is treated as
-        # additive/absolute). "lognormal" is a recognised tag in the file
-        # format (parser.py), but the original C++ Convino never finished
-        # this model either (measurement::setParameterType throws
-        # "log normal not fully supported yet", and the fit-function
-        # evaluation has it explicitly disabled with a "switched off for
-        # now"/"TBI" comment) — there is no validated reference behaviour to
-        # port. Rather than silently mis-modelling a user's "lognormal" tag
-        # as "absolute" (the previous, undetected fallthrough), fail loudly
-        # so the user knows the tag is unsupported instead of getting a
-        # quietly wrong statistical model.
-        bad_sys_names = sorted({
-            name for name, t in zip(ms.sys_names, ms.sys_types)
-            if t not in ("absolute", "relative")
-        })
-        if bad_sys_names:
-            unsupported_types = sorted({
-                t for t in ms.sys_types if t not in ("absolute", "relative")
-            })
+        # Only "absolute" and "relative" are implemented. "lognormal" is
+        # parsed, but the C++ Convino never finished it either, so fail
+        # instead of silently treating it as "absolute".
+        bad = {n: t for n, t in zip(ms.sys_names, ms.sys_types)
+               if t not in ("absolute", "relative")}
+        if bad:
             raise NotImplementedError(
-                f"Systematic(s) {bad_sys_names} use unsupported type(s) "
-                f"{unsupported_types}. Only 'absolute' and 'relative' "
-                "systematic models are implemented; 'lognormal' is parsed "
-                "from input files but has no implemented statistical model "
-                "(it was never completed in the original C++ Convino "
-                "either, which throws on it too) and must not be used."
+                f"Systematic(s) {sorted(bad)} use unsupported type(s) "
+                f"{sorted(set(bad.values()))}; only 'absolute' and 'relative' "
+                "are implemented ('lognormal' is not)."
             )
         meas_jax.append({
             "x_meas":   jnp.array(ms.x_meas),
@@ -130,22 +113,14 @@ def make_chi2(
         total = jnp.zeros(())
 
         for md in meas_jax:
-            x_meas      = md["x_meas"]
-            LM          = md["LM"]
-            Lk_up       = md["Lk_up"]
-            Lk_down     = md["Lk_down"]
-            LD          = md["LD"]
-            est_idx     = md["est_idx"]
-            sys_idx     = md["sys_idx"]
-            rel_mask    = md["rel_mask"]
-
-            x_comb_local  = pars[nsys + est_idx]   # (nest_local,)
-            lambdas_local = pars[sys_idx]            # (nlamb_local,)
+            x_meas, LM = md["x_meas"], md["LM"]
+            x_comb_local  = pars[nsys + md["est_idx"]]   # (nest_local,)
+            lambdas_local = pars[md["sys_idx"]]          # (nlamb_local,)
             if md["has_pulls"]:
                 lambdas_local = lambdas_local - md["lam_hat"]
 
-            x_sh = _x_shifted(x_comb_local, x_meas, Lk_up, Lk_down,
-                               lambdas_local, rel_mask)
+            x_sh = _x_shifted(x_comb_local, x_meas, md["Lk_up"], md["Lk_down"],
+                               lambdas_local, md["rel_mask"])
             residual = x_meas - x_sh  # (nest_local,)
 
             # Observable chi2
@@ -161,7 +136,7 @@ def make_chi2(
             total += residual @ LM_eff @ residual
 
             # Systematic residual chi2 (+ input-pull terms, see module docstring)
-            total += lambdas_local @ LD @ lambdas_local
+            total += lambdas_local @ md["LD"] @ lambdas_local
             if md["has_pulls"]:
                 total += -2.0 * (lambdas_local @ md["p_lam_hat"]) + md["offset"]
 

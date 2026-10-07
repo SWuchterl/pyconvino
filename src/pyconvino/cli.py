@@ -112,7 +112,6 @@ def main():
         combiner = Combiner.from_config(
             args.config,
             use_pearson=args.pearson,
-            prefix=args.prefix,
             compute_impacts=not args.no_impacts,
             impacts_only=impacts_only,
             verbose=args.verbose,
@@ -120,17 +119,15 @@ def main():
             nonneg_combined=args.nonneg_combined,
             use_nuisance_values=args.use_nuisance_values,
         )
+        exporters = {"npz": (export_npz, export_scan_npz), "json": (export_json, export_scan_json)}
+        formats = ["npz", "json"] if args.export == "both" else [args.export] if args.export else []
+
         result = combiner.combine()
         write_result(result, prefix=args.prefix)
-
-        if args.export in ("npz", "both"):
-            npz_path = f"{args.prefix}_result.npz"
-            export_npz(result, npz_path)
-            print(f"Result exported to {npz_path}")
-        if args.export in ("json", "both"):
-            json_path = f"{args.prefix}_result.json"
-            export_json(result, json_path)
-            print(f"Result exported to {json_path}")
+        for fmt in formats:
+            path = f"{args.prefix}_result.{fmt}"
+            exporters[fmt][0](result, path)
+            print(f"Result exported to {path}")
 
         if args.scan:
             scan_results = combiner.scan_correlations(n_steps=args.scan_steps)
@@ -142,14 +139,10 @@ def main():
                 )
             else:
                 write_scan_result(scan_results, prefix=args.prefix)
-                if args.export in ("npz", "both"):
-                    scan_npz_path = f"{args.prefix}_scan_result.npz"
-                    export_scan_npz(scan_results, scan_npz_path)
-                    print(f"Scan result exported to {scan_npz_path}")
-                if args.export in ("json", "both"):
-                    scan_json_path = f"{args.prefix}_scan_result.json"
-                    export_scan_json(scan_results, scan_json_path)
-                    print(f"Scan result exported to {scan_json_path}")
+                for fmt in formats:
+                    path = f"{args.prefix}_scan_result.{fmt}"
+                    exporters[fmt][1](scan_results, path)
+                    print(f"Scan result exported to {path}")
 
         if not result.converged:
             print("WARNING: minimization did not fully converge", file=sys.stderr)

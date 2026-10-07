@@ -11,16 +11,10 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from pyconvino.result import output_path_for, prepare_output_path
+from pyconvino.result import prepare_output_path
 
 
 class OutputPathTest(unittest.TestCase):
-    def test_output_path_suffix(self):
-        self.assertEqual(output_path_for("foo"), Path("foo_result.txt"))
-        self.assertEqual(
-            output_path_for("dir/run1"), Path("dir/run1_result.txt")
-        )
-
     def test_creates_missing_parent_dir(self):
         with tempfile.TemporaryDirectory() as d:
             prefix = str(Path(d) / "sub" / "deeper" / "run1")

@@ -35,9 +35,9 @@ import numpy as np
 # Low-level helpers
 # ---------------------------------------------------------------------------
 
-def _strip_comment(line: str, comment: str = "#") -> str:
-    """Remove inline comment (everything from the first comment char on)."""
-    pos = line.find(comment)
+def _strip_comment(line: str) -> str:
+    """Remove inline comment (everything from the first '#' on)."""
+    pos = line.find("#")
     if pos >= 0:
         line = line[:pos]
     return line.strip()
@@ -204,13 +204,6 @@ def _parse_triangular(lines: list[str]) -> tuple[list[str], list[Optional[float]
 # ---------------------------------------------------------------------------
 
 @dataclass
-class UncertaintyEntry:
-    """Stores (upvar, downvar) for one (estimate, systematic) pair."""
-    up: float
-    down: float
-
-
-@dataclass
 class MeasurementFileData:
     """Raw data read from a single measurement file."""
     path: str = ""
@@ -224,7 +217,7 @@ class MeasurementFileData:
     hessian: list[list[float]] = field(default_factory=list)  # symmetric n×n
 
     # Externalized (not-fitted) uncertainties: est_name → sys_name → (up, down)
-    externalized: dict[str, dict[str, UncertaintyEntry]] = field(default_factory=dict)
+    externalized: dict[str, dict[str, tuple[float, float]]] = field(default_factory=dict)
     # Just the names of the externalised systematics in order
     ext_sys_names: list[str] = field(default_factory=list)
 
@@ -333,7 +326,7 @@ def parse_measurement_file(path: str | Path) -> MeasurementFileData:
         sys_names = [h for h in header if h != 'stat']
         data.ext_sys_names = sys_names
 
-        ext: dict[str, dict[str, UncertaintyEntry]] = {}
+        ext: dict[str, dict[str, tuple[float, float]]] = {}
 
         for line in lines[1:]:
             tokens = line.split()
@@ -349,8 +342,7 @@ def parse_measurement_file(path: str | Path) -> MeasurementFileData:
                 if hname == 'stat':
                     data.stat_errors[est_name] = float(tokens[tok_idx])
                 else:
-                    up, down = _parse_uncertainty_str(tokens[tok_idx])
-                    ext[est_name][hname] = UncertaintyEntry(up, down)
+                    ext[est_name][hname] = _parse_uncertainty_str(tokens[tok_idx])
 
         data.externalized = ext
 
@@ -447,13 +439,13 @@ def parse_config_file(path: str | Path) -> ConfigData:
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _parse_kv(lines: list[str], delimiter: str = '=') -> dict[str, str]:
+def _parse_kv(lines: list[str]) -> dict[str, str]:
     """Return a dict of key → value from key=value lines (case-insensitive keys)."""
     kv: dict[str, str] = {}
     for line in lines:
-        if delimiter not in line:
+        if '=' not in line:
             continue
-        parts = line.split(delimiter, 1)
+        parts = line.split('=', 1)
         kv[parts[0].strip().lower()] = parts[1].strip()
     return kv
 

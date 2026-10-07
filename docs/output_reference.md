@@ -408,7 +408,7 @@ export_json(result, "out.json")     # JSON
 # Correlation scan
 combiner = Combiner.from_config("rho_config.txt")
 combiner.combine()                  # must call combine() first
-scan = combiner.scan_correlations(n_steps=6, compute_impacts=False)
+scan = combiner.scan_correlations(n_steps=6)
 # scan: {group_name: (scan_values_array, [CombinationResult, ...])}
 
 export_scan_npz(scan, "out_scan.npz")
@@ -420,7 +420,7 @@ sd = scan_results_to_dict(scan)    # nested dict
 
 - `Combiner.from_config(path, *, use_pearson, prefix, compute_impacts, impacts_only, verbose, pd_reg_method, nonneg_combined)`
 - `Combiner.combine() → CombinationResult`
-- `Combiner.scan_correlations(n_steps, compute_impacts) → ScanResults`
+- `Combiner.scan_correlations(n_steps) → {group: (scan_values, [CombinationResult, ...])}`
 - `CombinationResult` — dataclass, all fields described above
 - `to_dict(result) → dict` — nested; arrays are `np.ndarray`
 - `export_npz(result, path)` / `export_json(result, path)`

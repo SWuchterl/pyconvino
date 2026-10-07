@@ -168,18 +168,13 @@ def setup_measurement(
     # ------------------------------------------------------------------
     # Build LM (observable Hessian)
     # ------------------------------------------------------------------
+    # Hessian block first; the other (externalized) estimates get 1/stat^2 on
+    # the diagonal (identity correlation).
     LM = np.zeros((nest, nest))
-    if H_has_data and nHest > 0:
-        LM[:nHest, :nHest] = M
-        # Externalized estimates (if any): use their stat uncertainties
-        for i in range(nHest, nest):
-            if stat_errs[i] > 0:
-                LM[i, i] = 1.0 / stat_errs[i] ** 2
-    else:
-        # Pure externalized: LM from stat uncertainties (identity correlation)
-        for i in range(nest):
-            if stat_errs[i] > 0:
-                LM[i, i] = 1.0 / stat_errs[i] ** 2
+    start = nHest if H_has_data else 0
+    LM[:start, :start] = M
+    i = start + np.flatnonzero(stat_errs[start:] > 0)
+    LM[i, i] = 1.0 / stat_errs[i] ** 2
 
     # ------------------------------------------------------------------
     # Build Lk (systematic response vectors)
@@ -199,9 +194,7 @@ def setup_measurement(
         col = nHlamb + i
         for mu, est_name in enumerate(all_est_names):
             if est_name in data.externalized and sys_name in data.externalized[est_name]:
-                entry = data.externalized[est_name][sys_name]
-                Lk_up[mu, col] = entry.up
-                Lk_down[mu, col] = entry.down
+                Lk_up[mu, col], Lk_down[mu, col] = data.externalized[est_name][sys_name]
 
     # ------------------------------------------------------------------
     # Build LD (residual systematic matrix, top-left nHlamb × nHlamb block)
@@ -245,10 +238,7 @@ def setup_measurement(
     # ------------------------------------------------------------------
     # Systematic types
     # ------------------------------------------------------------------
-    sys_types = []
-    for name in all_sys_names:
-        t = data.sys_types.get(name, "absolute")
-        sys_types.append(t)
+    sys_types = [data.sys_types.get(name, "absolute") for name in all_sys_names]
 
     return MeasurementSetup(
         x_meas=x_meas,
