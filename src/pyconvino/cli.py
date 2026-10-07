@@ -14,11 +14,11 @@ except PackageNotFoundError:
 
 def main():
     parser = argparse.ArgumentParser(
-        prog="convino",
+        prog="pyconvino",
         description="Convino: combination of physics measurements (Python/JAX port)",
     )
     parser.add_argument(
-        "--version", action="version", version=f"convino {__version__}"
+        "--version", action="version", version=f"pyconvino {__version__}"
     )
     parser.add_argument("config", help="Path to the config file")
     parser.add_argument(

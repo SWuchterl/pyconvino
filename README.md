@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="logo_pyconvino.png" alt="pyconvino logo" width="220">
+  <img src="https://raw.githubusercontent.com/SWuchterl/pyconvino/main/logo_pyconvino.png" alt="pyconvino logo" width="220">
 </p>
 
 # pyconvino
@@ -12,20 +12,56 @@ minimized with SciPy.
 ## Install
 
 ```bash
-pip install -e .
+pip install pyconvino
 ```
 
-This pulls in JAX, NumPy and SciPy. (For GPU/TPU builds of JAX, install the
-appropriate `jaxlib` wheel for your platform first, then `pip install -e .`.)
+This pulls in JAX, NumPy and SciPy. Python 3.11 or newer is needed. For
+GPU/TPU builds of JAX, install the appropriate JAX wheel for your platform
+first. For development, clone the repository and use `pip install -e ".[test]"`.
+
+### macOS with an x86_64 Python (Intel Macs, or Rosetta on Apple silicon)
+
+PyPI has no JAX ≥ 0.10 for x86_64 macOS (the last x86_64 macOS wheel is
+0.4.38), so there `pip install pyconvino` cannot find a matching `jax`. This
+also hits Apple-silicon Macs that run an x86_64 Python under Rosetta (e.g. an
+old Intel Homebrew or Mambaforge install). Check your Python:
+
+```bash
+python -c "import platform; print(platform.machine())"   # arm64 or x86_64
+```
+
+On Apple silicon, if it prints `x86_64`:
+
+- **Use a native arm64 Python (recommended).** For example a native
+  Miniforge, or a conda env forced to arm64:
+  ```bash
+  CONDA_SUBDIR=osx-arm64 conda create -n pyconvino python=3.12 pip
+  conda activate pyconvino
+  conda config --env --set subdir osx-arm64
+  pip install pyconvino
+  ```
+
+On an Intel Mac, or if you must keep the x86_64 Python:
+
+- **Take JAX from conda-forge**, which still builds it for x86_64 macOS (it
+  also runs under Rosetta, but slower than native):
+  ```bash
+  conda install -c conda-forge "jax>=0.10" numpy scipy
+  pip install pyconvino
+  ```
+
+Linux (x86_64 and aarch64) and native arm64 macOS work with plain
+`pip install pyconvino`.
 
 ## Usage
 
 ```bash
 # the only required argument is the combination's config file
-convino path/to/rho_config.txt --prefix /tmp/mycombo
+pyconvino path/to/rho_config.txt --prefix /tmp/mycombo
 # -> writes /tmp/mycombo_result.txt
 
-# or, without installing the console script:
+# `convino` is an alias of `pyconvino`, kept for existing scripts.
+# Or, without the console script:
 python -m pyconvino.cli path/to/rho_config.txt --prefix /tmp/mycombo
 ```
 
@@ -80,7 +116,7 @@ Each run spawns one JAX/BLAS thread pool sized to the whole machine. Two
 runs with impacts on the same node starve each other in the impacts phase
 (hundreds of threads spinning on 16 cores; a 14 s combination did not finish
 in 2 h). Cap the pools when running concurrently, e.g.
-`OMP_NUM_THREADS=4 OPENBLAS_NUM_THREADS=4 convino ...` (13 s each, measured).
+`OMP_NUM_THREADS=4 OPENBLAS_NUM_THREADS=4 pyconvino ...` (13 s each, measured).
 
 ### Differential normalisation
 
@@ -143,6 +179,9 @@ python -m test.regen_golden statonly   # a single setup
 ```
 
 ## Package layout
+
+The modules are in `src/pyconvino/`. Tests are in `test/`, the example
+combinations in `ConvinoSetups/`; neither is part of the installed package.
 
 | Module | Responsibility |
 |--------|----------------|

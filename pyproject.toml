@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=68"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -7,19 +7,41 @@ name = "pyconvino"
 version = "0.1.0"
 description = "Convino physics combination tool — Python/JAX port (no ROOT, no Minuit)"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
+authors = [{ name = "Sebastian Wuchterl" }]
+keywords = ["physics", "statistics", "combination", "HEP", "Convino", "JAX", "chi2"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Operating System :: MacOS",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Physics",
+]
+# jax pulls in the matching jaxlib itself. Lower bounds = oldest versions
+# tested (jax 0.10 on Python 3.11 in CI).
 dependencies = [
-    "jax>=0.4.20",
-    "jaxlib>=0.4.20",
-    "numpy>=1.24",
-    "scipy>=1.11",
+    "jax>=0.10",
+    "numpy>=2.0",
+    "scipy>=1.14",
 ]
 
+[project.optional-dependencies]
+test = ["pytest"]
+
+[project.urls]
+Homepage = "https://github.com/SWuchterl/pyconvino"
+Source = "https://github.com/SWuchterl/pyconvino"
+Issues = "https://github.com/SWuchterl/pyconvino/issues"
+"Original Convino" = "https://github.com/jkiesele/Convino"
+
 [project.scripts]
+pyconvino = "pyconvino.cli:main"
+# Old name, kept so existing scripts (condor jobs, runAll.sh) still work.
 convino = "pyconvino.cli:main"
 
-# The repository root *is* the `pyconvino` package (the .py modules live here),
-# so map the package name onto "." instead of a nested source folder.
-[tool.setuptools]
-packages = ["pyconvino"]
-package-dir = { "pyconvino" = "." }
+[tool.setuptools.packages.find]
+where = ["src"]

@@ -1,0 +1,3 @@
+# Tests need test/golden and ConvinoSetups/, which are not shipped; run them
+# from a git checkout. The sdist holds the package source only.
+prune test

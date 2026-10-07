@@ -27,6 +27,10 @@ _DEFAULT_TOL = dict(rtol=1e-5, atol=1e-8)
 _TOL = {
     "impact_up": dict(rtol=1e-4, atol=1e-6),
     "impact_down": dict(rtol=1e-4, atol=1e-6),
+    # Per-systematic impacts that are ~0 come out as 0 or ~1e-5 depending on
+    # platform / JAX version (sqrt of round-off), so they need a larger atol.
+    "impact_per_sys_up": dict(rtol=1e-4, atol=1e-4),
+    "impact_per_sys_down": dict(rtol=1e-4, atol=1e-4),
 }
 
 
