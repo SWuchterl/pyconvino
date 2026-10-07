@@ -1,0 +1,9 @@
+# Run once: pip install pre-commit && pre-commit install
+# Checks src/ and test/ only, as the CI does.
+files: ^(src|test)/
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.16.10   # same ruff version as .github/workflows/lint.yml
+    hooks:
+      - id: ruff-check
+      - id: ruff-format

@@ -2,7 +2,14 @@ name: test
 
 on:
   push:
+    branches: [main, "dev/**"]   # other branches: through a PR
   pull_request:
+  workflow_dispatch:
+    inputs:
+      slow:
+        description: "Also run the slow tests (CONVINO_SLOW_TESTS=1)"
+        type: boolean
+        default: true
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -19,9 +26,11 @@ jobs:
           - os: macos-latest   # arm64; one version is enough (10x minutes)
             python: "3.13"
     runs-on: ${{ matrix.os }}
+    env:
+      CONVINO_SLOW_TESTS: ${{ inputs.slow && '1' || '' }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python }}
           cache: pip
